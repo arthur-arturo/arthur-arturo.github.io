@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#09030e" />
+    <meta
+      name="description"
+      content="Portfolio de Arthur Alvarez: desarrollo de software, proyectos, IA y actividad en Discord."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Arthur Alvarez | Desarrollador" />
+    <meta
+      property="og:description"
+      content="Proyectos, desarrollo de software y agentes de inteligencia artificial de Arthur Alvarez."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://cdn.discordapp.com" crossorigin />
+    <link rel="preconnect" href="https://api.lanyard.rest" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300;400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <title>Arthur Alvarez | Desarrollador</title>
+    <script>
+      try {
+        const hourStr = new Intl.DateTimeFormat('en-US', {
+          hour: 'numeric',
+          hour12: false,
+          timeZone: 'America/Argentina/Buenos_Aires',
+        }).format(new Date());
+        const hour = Number.parseInt(hourStr, 10);
+        const h = Number.isNaN(hour) ? new Date().getHours() : hour % 24;
+        const theme = h >= 6 && h < 19 ? 'light' : 'dark';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', theme === 'dark' ? '#09030e' : '#f7efff');
+      } catch {
+        const h = new Date().getHours();
+        const theme = h >= 6 && h < 19 ? 'light' : 'dark';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+      }
+    </script>
+  </head>
+  <body class="overflow-x-hidden transition-colors duration-500 ease-in-out">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

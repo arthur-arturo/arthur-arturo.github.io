@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" fill="none">
+  <defs>
+    <linearGradient id="cw-bg" x1="0" y1="0" x2="900" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#291243" />
+      <stop offset="1" stop-color="#11071c" />
+    </linearGradient>
+    <radialGradient id="cw-glow" cx="0" cy="0" r="1" gradientTransform="matrix(290 220 -240 315 690 250)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#c485ff" stop-opacity=".42" />
+      <stop offset="1" stop-color="#45216e" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="cw-fade" x1="0" y1="0" x2="540" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#140921" stop-opacity=".86" />
+      <stop offset="1" stop-color="#140921" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <rect width="900" height="520" fill="url(#cw-bg)" />
+  <rect width="900" height="520" fill="url(#cw-glow)" />
+  <rect x="290" y="54" width="566" height="412" rx="26" fill="#0d0816" fill-opacity=".72" stroke="#d9bcff" stroke-opacity=".22" />
+  <path d="M290 112h566" stroke="#d9bcff" stroke-opacity=".14" />
+  <circle cx="324" cy="83" r="6.5" fill="#ff786f" fill-opacity=".75" />
+  <circle cx="348" cy="83" r="6.5" fill="#f8cf6b" fill-opacity=".75" />
+  <circle cx="372" cy="83" r="6.5" fill="#77d6a3" fill-opacity=".75" />
+  <g font-family="Consolas,monospace" font-size="19" opacity=".88">
+    <text x="328" y="164" fill="#c79bff">const</text>
+    <text x="394" y="164" fill="#ebe3f5"> portfolio =</text>
+    <text x="530" y="164" fill="#8bd5ca"> await</text>
+    <text x="594" y="164" fill="#e9d7ff"> build()</text>
+    <text x="328" y="206" fill="#ebe3f5">{</text>
+    <text x="352" y="206" fill="#f3c37b"> stack:</text>
+    <text x="434" y="206" fill="#a8dc99"> ["TS", "React", "AI"]</text>
+    <text x="352" y="248" fill="#f3c37b"> location:</text>
+    <text x="468" y="248" fill="#a8dc99"> "Buenos Aires"</text>
+    <text x="352" y="290" fill="#f3c37b"> quality:</text>
+    <text x="456" y="290" fill="#bd92ff"> Infinity</text>
+    <text x="328" y="332" fill="#ebe3f5">}</text>
+    <text x="328" y="394" fill="#8bd5ca">// ideas turned into software</text>
+    <text x="328" y="434" fill="#c79bff">export</text>
+    <text x="402" y="434" fill="#ebe3f5"> default</text>
+    <text x="492" y="434" fill="#f3c37b"> ArthurAlvarez</text>
+  </g>
+  <rect width="900" height="520" fill="url(#cw-fade)" />
+</svg>

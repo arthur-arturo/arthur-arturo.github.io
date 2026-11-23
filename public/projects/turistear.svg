@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" fill="none">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="900" y2="900"><stop stop-color="#145d54"/><stop offset="1" stop-color="#132c39"/></linearGradient><linearGradient id="map" x1="250" y1="250" x2="760" y2="780"><stop stop-color="#7be3c0"/><stop offset="1" stop-color="#54b9a2"/></linearGradient></defs>
+  <rect width="900" height="900" rx="48" fill="url(#bg)"/>
+  <circle cx="726" cy="178" r="198" fill="#97f0d0" fill-opacity=".12"/>
+  <rect x="94" y="84" width="712" height="732" rx="42" fill="#f7fbf7"/>
+  <rect x="94" y="84" width="712" height="118" rx="42" fill="#ffffff"/>
+  <path d="M94 160h712v42H94z" fill="#fff"/>
+  <circle cx="151" cy="143" r="23" fill="#35a789"/><path d="M147 151c17-22 27-31 38-36-2 17-8 28-20 40h-18l-9 10 9-14z" fill="#ddfff3"/>
+  <rect x="198" y="126" width="216" height="20" rx="10" fill="#193d39"/>
+  <rect x="198" y="158" width="132" height="10" rx="5" fill="#8aa8a1"/>
+  <rect x="130" y="235" width="640" height="337" rx="25" fill="#d9eee4"/>
+  <path d="M129 483c92-38 104-91 208-101 110-11 135 47 243 9 89-31 118-99 190-97v278H130V483z" fill="#b6e2d2"/>
+  <path d="M221 235c-27 68-18 104 34 145 46 36 45 69 1 106-40 35-21 61 31 86m181-337c-23 61-6 92 50 118 49 23 58 54 28 93-29 37-11 76 45 116m96-323c-15 59 2 89 46 121 34 25 45 56 32 92" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-dasharray="2 22"/>
+  <path d="M469 367c-43 0-78 34-78 77 0 57 78 125 78 125s78-68 78-125c0-43-35-77-78-77z" fill="#f07555"/><circle cx="469" cy="444" r="25" fill="#fff"/>
+  <rect x="130" y="616" width="305" height="151" rx="24" fill="#fff"/><rect x="155" y="641" width="117" height="12" rx="6" fill="#68bca4"/><rect x="155" y="671" width="231" height="14" rx="7" fill="#314946"/><rect x="155" y="701" width="180" height="11" rx="5.5" fill="#a5bbb4"/>
+  <rect x="458" y="616" width="312" height="151" rx="24" fill="url(#map)" fill-opacity=".24"/><circle cx="513" cy="682" r="29" fill="#60c3a8"/><path d="m501 682 8 8 17-19" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><rect x="560" y="662" width="166" height="12" rx="6" fill="#31554d"/><rect x="560" y="690" width="128" height="10" rx="5" fill="#8ba69d"/>
+</svg>
