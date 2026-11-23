@@ -43,13 +43,11 @@ function getWeatherKey(weather: WeatherConditions): TranslationKey {
 
 function LunarPhaseGlyph({ phase, isDark }: { phase: number; isDark: boolean }) {
   const maskId = useId();
-  // Represent Southern-hemisphere illumination offset cleanly inside a 24x24 mask
   const angle = ((phase % 1) + 1) % 1 * Math.PI * 2;
   const shadowOffsetX = Math.sin(angle) * 7.2;
   const shadowScale = Math.abs(Math.cos(angle));
   const fill = isDark ? "#e2e8ff" : "#4c2c7a";
 
-  // Near full moon -> clean lit circle
   if (phase > 0.44 && phase < 0.56) {
     return (
       <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
@@ -159,78 +157,46 @@ export function CelestialHud() {
     return weather.isLive ? weatherLabel : t(STAGE_KEYS[solar.stage]);
   }, [isNight, solar.lunarPhaseKey, solar.stage, t, weather]);
 
-  const topPercent = `${clamp((1 - arc.yFactor) * 50 + 11.5, 16, 66).toFixed(1)}%`;
   const tempDisplay =
     weather.temperature !== null ? `${weather.temperature.toFixed(1)}°` : null;
 
   const textTone = isDark
     ? "text-white/95 drop-shadow-[0_2px_10px_rgba(6,3,18,0.65)]"
-    : "text-[#2a1746] drop-shadow-[0_1px_10px_rgba(255,255,255,0.6)]";
+    : "text-[#2a1746] drop-shadow-[0_1px_10px_rgba(255,255,255,0.65)]";
 
   return (
-    <>
-      {/* Wide desktop (>= 1400px): borderless editorial readout hovering directly beneath the 3D Sun/Moon */}
-      <aside
-        aria-label={t("city")}
-        className={`pointer-events-none fixed right-2.5 z-[15] hidden w-[118px] select-none flex-col items-start text-left transition-[top,color] duration-700 min-[1400px]:flex min-[1440px]:right-4 min-[1440px]:w-[132px] 2xl:right-6 2xl:w-[146px] ${textTone}`}
-        style={{ top: topPercent }}
-      >
-        <div className="flex items-center gap-2">
-          {tempDisplay && (
-            <span className="text-xl font-extrabold leading-none tracking-tight tabular-nums min-[1440px]:text-2xl">
-              {tempDisplay}
-            </span>
-          )}
-          <CelestialArcTicks
-            progress={arcProgress}
-            elevation={arc.elevation}
-            isNight={isNight}
-            isDark={isDark}
-          />
-        </div>
-
-        <p className="mt-1.5 flex items-center gap-1 text-[11px] font-semibold leading-snug opacity-95 min-[1440px]:text-xs">
+    <div
+      aria-label={t("city")}
+      className={`pointer-events-none container mx-auto flex select-none items-center justify-between gap-3 pt-1 xl:px-20 md:justify-center md:gap-4 md:pt-2 lg:gap-5 ${textTone}`}
+    >
+      <div className="flex min-w-0 items-center gap-2.5">
+        {tempDisplay && (
+          <span className="text-lg font-extrabold leading-none tracking-tight tabular-nums sm:text-xl md:text-2xl">
+            {tempDisplay}
+          </span>
+        )}
+        <span className="flex min-w-0 items-center gap-1 truncate text-xs font-semibold sm:text-sm md:text-[15px]">
           {isNight && <LunarPhaseGlyph phase={solar.lunarPhase} isDark={isDark} />}
-          <span>{conditionText}</span>
-        </p>
-
-        <p className="mt-0.5 text-[11px] font-medium leading-tight tabular-nums opacity-75 min-[1440px]:text-xs">
-          {solar.localTime}
-        </p>
-        <p className="text-[11px] font-medium leading-tight opacity-75 min-[1440px]:text-xs">
-          {t("cityShort")}
-        </p>
-      </aside>
-
-      {/* Tablet / small desktop / mobile (< 1400px): compact inline borderless sky strip above Bento grid */}
-      <div
-        aria-label={t("city")}
-        className={`pointer-events-none container mx-auto flex select-none items-center justify-between gap-3 pt-1 xl:px-20 min-[1400px]:hidden ${textTone}`}
-      >
-        <div className="flex min-w-0 items-center gap-2.5">
-          {tempDisplay && (
-            <span className="text-lg font-extrabold leading-none tracking-tight tabular-nums sm:text-xl">
-              {tempDisplay}
-            </span>
-          )}
-          <span className="flex min-w-0 items-center gap-1 truncate text-xs font-semibold sm:text-sm">
-            {isNight && <LunarPhaseGlyph phase={solar.lunarPhase} isDark={isDark} />}
-            <span className="truncate">{conditionText}</span>
-          </span>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2.5">
-          <CelestialArcTicks
-            progress={arcProgress}
-            elevation={arc.elevation}
-            isNight={isNight}
-            isDark={isDark}
-          />
-          <span className="text-[11px] font-medium leading-tight tabular-nums opacity-80 sm:text-xs">
-            {solar.localTime} · {t("cityShort")}
-          </span>
-        </div>
+          <span className="truncate">{conditionText}</span>
+        </span>
       </div>
-    </>
+
+      <span className="hidden h-3.5 w-px bg-current opacity-20 md:block" aria-hidden="true" />
+
+      <div className="flex shrink-0 items-center gap-2.5 md:contents">
+        <CelestialArcTicks
+          progress={arcProgress}
+          elevation={arc.elevation}
+          isNight={isNight}
+          isDark={isDark}
+        />
+
+        <span className="hidden h-3.5 w-px bg-current opacity-20 md:block" aria-hidden="true" />
+
+        <span className="text-[11px] font-medium leading-tight tabular-nums opacity-80 sm:text-xs md:text-sm">
+          {solar.localTime} · {t("cityShort")}
+        </span>
+      </div>
+    </div>
   );
 }

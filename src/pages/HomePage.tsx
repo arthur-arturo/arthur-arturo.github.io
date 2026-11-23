@@ -99,10 +99,10 @@ export function HomePage() {
           <div className="about-water-wave-secondary" aria-hidden="true" />
 
           <div
-            className="hero-portrait-mask pointer-events-none absolute inset-y-0 right-0 z-0 hidden w-[44%] items-center justify-end overflow-hidden bg-gradient-to-l from-purple-300/15 via-purple-400/5 to-transparent pr-8 md:flex"
+            className="hero-portrait-mask pointer-events-none absolute inset-x-0 top-0 z-0 flex h-[64%] w-full items-start justify-end overflow-hidden bg-gradient-to-b from-purple-300/20 via-purple-400/5 to-transparent pr-6 pt-5 md:inset-x-auto md:inset-y-0 md:right-0 md:h-full md:w-[44%] md:items-center md:bg-gradient-to-l md:pr-8 md:pt-0"
             aria-hidden="true"
           >
-            <span className="select-none text-[clamp(7rem,13vw,11rem)] font-black leading-none tracking-tighter text-white/10">
+            <span className="select-none text-[clamp(6rem,13vw,11rem)] font-black leading-none tracking-tighter text-white/10">
               AA
             </span>
           </div>
@@ -116,7 +116,7 @@ export function HomePage() {
               decoding="async"
               width="512"
               height="512"
-              className={`hero-portrait-mask pointer-events-none absolute bottom-0 right-0 z-0 hidden h-full w-[44%] object-cover object-top transition-opacity duration-500 md:block ${
+              className={`hero-portrait-mask pointer-events-none absolute inset-x-0 top-0 z-0 h-[64%] w-full object-cover object-top transition-opacity duration-500 md:inset-x-auto md:inset-y-0 md:right-0 md:h-full md:w-[44%] ${
                 avatarLoaded ? "opacity-100" : "opacity-0"
               }`}
               src={getDiscordAvatar(discordUser, profile.discordId, 512)}
@@ -124,6 +124,10 @@ export function HomePage() {
               onError={() => setAvatarFailed(true)}
             />
           )}
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[58%] bg-gradient-to-t from-[#180533]/75 via-[#180533]/25 to-transparent md:hidden"
+            aria-hidden="true"
+          />
 
           <div className="relative z-10 flex h-full w-full flex-col justify-end p-5 text-white md:w-[64%] md:p-8">
             <h1

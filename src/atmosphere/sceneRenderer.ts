@@ -167,7 +167,7 @@ const SKY_FRAGMENT_SHADER = `
       float rays = 0.5 + 0.5 * sin(angle * 10.0 + uTime * 0.16);
       float rayNoise = fbm(vec2(angle * 2.6, cornerDist * 2.1 - uTime * 0.03));
       float sunRays = smoothstep(0.28, 0.94, rays * 0.52 + rayNoise * 0.58) * beamSpread;
-      float sunCoreGlow = exp(-cornerDist * cornerDist * 3.8);
+      float sunCoreGlow = exp(-cornerDist * cornerDist * 2.6);
 
       float dayFactor = uBeamMix * cloudDim;
       vec3 lightSunCol = mix(
@@ -190,12 +190,12 @@ const SKY_FRAGMENT_SHADER = `
       col += mix(vec3(0.56, 0.5, 0.9), vec3(0.24, 0.22, 0.56), uIsDark) * nightSheen * uNightBlend * cloudDim * 0.24;
     }
 
-    // 3. Drifting atmospheric cloud canopy (continuous offset accumulation prevents wind speed snaps)
+    // 3. Subtle background cloud haze (foreground sculpted clouds carry primary detail)
     if (uCloudAmount > 0.02) {
       float clA = fbm(uv * vec2(3.1, 2.0) + uCloudOffset * 0.65);
       float clB = fbm(uv * vec2(4.6, 2.6) - uCloudOffset * 0.42 + vec2(0.0, 0.35));
       float cloudPattern = smoothstep(0.28, 0.82, mix(clA, clB, 0.48));
-      col = mix(col, uCloudColor, cloudPattern * uCloudAmount * 0.36);
+      col = mix(col, uCloudColor, cloudPattern * uCloudAmount * 0.16);
     }
 
     // 4. Subtle atmospheric fog lift toward lower horizon
@@ -307,11 +307,12 @@ const SUN_FRAGMENT_SHADER = `
     if (uOpacity <= 0.004) discard;
     vec3 N = normalize(vNormalView);
     float facing = max(dot(N, vec3(0.0, 0.0, 1.0)), 0.0);
-    float limb = pow(1.0 - facing, 1.35);
+    float coreMask = smoothstep(0.08, 0.78, facing);
+    float softFalloff = pow(facing, 1.45);
     float pulse = 0.96 + 0.04 * sin(uTime * 1.1 + vUv.y * 4.0);
 
-    vec3 color = mix(uSunCore, uSunRim, limb) * pulse;
-    float alpha = clamp(uOpacity * (0.92 + 0.08 * limb), 0.0, 0.98);
+    vec3 color = mix(uSunRim, uSunCore, coreMask) * pulse;
+    float alpha = clamp(uOpacity * softFalloff, 0.0, 0.94);
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -351,9 +352,13 @@ const MIST_VERTEX_SHADER = `
 
 const MIST_FRAGMENT_SHADER = `
   uniform vec2 uDrift;
+  uniform vec2 uScale;
+  uniform vec2 uLightDir;
   uniform float uOpacity;
   uniform float uSeed;
-  uniform vec3 uMistColor;
+  uniform float uCoverage;
+  uniform vec3 uCloudHighlight;
+  uniform vec3 uCloudShadow;
   varying vec2 vUv;
 
   float hash(vec2 p) {
@@ -384,12 +389,30 @@ const MIST_FRAGMENT_SHADER = `
 
   void main() {
     if (uOpacity <= 0.004) discard;
-    vec2 uv = vUv * vec2(2.6, 1.6) + vec2(uDrift.x + uSeed, uSeed * 0.37 + uDrift.y);
-    float n = fbm(uv);
-    float n2 = fbm(uv * 1.4 - vec2(uDrift.x * 0.7, 0.4));
-    float density = smoothstep(0.28, 0.84, mix(n, n2, 0.45));
-    float edgeFade = smoothstep(0.0, 0.18, vUv.y) * smoothstep(1.0, 0.72, vUv.y);
-    gl_FragColor = vec4(uMistColor, density * uOpacity * (0.45 + 0.55 * edgeFade));
+    vec2 uv = vUv * uScale + vec2(uDrift.x + uSeed, uSeed * 0.37 + uDrift.y);
+
+    float base = fbm(uv);
+    float detail = fbm(uv * 2.15 + vec2(3.2, -1.8));
+    float puff = mix(base, detail, 0.35);
+
+    float thresh = mix(0.56, 0.34, clamp(uCoverage, 0.0, 1.0));
+    float alphaMask = smoothstep(thresh, thresh + 0.24, puff);
+    if (alphaMask <= 0.004) discard;
+
+    vec2 sunStep = normalize(uLightDir + vec2(0.0001)) * 0.09;
+    float puffTowardLight = mix(
+      fbm(uv + sunStep),
+      fbm((uv + sunStep) * 2.15 + vec2(3.2, -1.8)),
+      0.35
+    );
+    float crestLight =
+      smoothstep(-0.14, 0.16, puff - puffTowardLight) * 0.55 +
+      smoothstep(thresh, thresh + 0.32, puff) * 0.45;
+    vec3 cloudCol = mix(uCloudShadow, uCloudHighlight, clamp(crestLight, 0.0, 1.0));
+
+    float verticalBand = smoothstep(0.04, 0.32, vUv.y) * smoothstep(1.0, 0.72, vUv.y);
+    float finalAlpha = clamp(alphaMask * uOpacity * (0.45 + 0.55 * verticalBand), 0.0, 0.85);
+    gl_FragColor = vec4(cloudCol, finalAlpha);
   }
 `;
 
@@ -731,7 +754,7 @@ export function createAtmosphereScene(
   const sunMesh = new THREE.Mesh(sunGeom, sunMat);
   sunGroup.add(sunMesh);
 
-  const celestialGlowGeom = new THREE.PlaneGeometry(9.6, 9.6);
+  const celestialGlowGeom = new THREE.PlaneGeometry(14.0, 14.0);
   const sunGlowUniforms = {
     uColor: { value: new THREE.Color(...state.celestialGlowColor) },
     uIntensity: { value: state.celestialGlow },
@@ -780,26 +803,39 @@ export function createAtmosphereScene(
   moonGlowMesh.position.set(0, 0, -0.4);
   moonGroup.add(moonGlowMesh);
 
-  // 3. Multi-layer wind-drifted clouds (behind + subtle front layer over celestial bodies)
-  const mistGeom = new THREE.PlaneGeometry(36, 20);
-  const allDepths = [-8.6, -7.8, -5.6];
+  // 3. Multi-layer wind-drifted sculpted 3D clouds (behind + foreground veil across celestial body)
+  const mistGeom = new THREE.PlaneGeometry(42, 22);
+  const allDepths = [-8.4, -6.2, -4.6];
+  const layerScales = [
+    new THREE.Vector2(2.1, 1.3),
+    new THREE.Vector2(3.0, 1.8),
+    new THREE.Vector2(1.6, 1.1),
+  ];
   const mistLayers: Array<{
     mesh: THREE.Mesh;
     speedFactor: number;
     uniforms: {
       uDrift: { value: THREE.Vector2 };
+      uScale: { value: THREE.Vector2 };
+      uLightDir: { value: THREE.Vector2 };
       uOpacity: { value: number };
       uSeed: { value: number };
-      uMistColor: { value: THREE.Color };
+      uCoverage: { value: number };
+      uCloudHighlight: { value: THREE.Color };
+      uCloudShadow: { value: THREE.Color };
     };
   }> = [];
 
   for (let i = 0; i < quality.cloudLayers; i += 1) {
     const uniforms = {
       uDrift: { value: new THREE.Vector2(0, 0) },
+      uScale: { value: layerScales[i].clone() },
+      uLightDir: { value: new THREE.Vector2(0.4, 0.8) },
       uOpacity: { value: state.cloudOpacity },
       uSeed: { value: i * 4.3 },
-      uMistColor: { value: new THREE.Color(...state.cloudColor) },
+      uCoverage: { value: state.cloudAmount },
+      uCloudHighlight: { value: new THREE.Color(...state.cloudHighlight) },
+      uCloudShadow: { value: new THREE.Color(...state.cloudShadow) },
     };
     const mat = new THREE.ShaderMaterial({
       uniforms,
@@ -811,7 +847,7 @@ export function createAtmosphereScene(
     const mesh = new THREE.Mesh(mistGeom, mat);
     mesh.position.set(0, 0, allDepths[i]);
     scene.add(mesh);
-    mistLayers.push({ mesh, speedFactor: 0.75 + i * 0.35, uniforms });
+    mistLayers.push({ mesh, speedFactor: 0.72 + i * 0.34, uniforms });
   }
 
   // 4. Volumetric atmospheric fog depth plane (WMO 45/48)
@@ -1113,20 +1149,40 @@ export function createAtmosphereScene(
   let frustumHalfH = 5.6;
 
   const updateCelestialPlacement = () => {
-    const bodyScale = camera.aspect < 0.75 ? 0.8 : 1.04;
-    sunGroup.position.set(
-      frustumHalfW * state.sunXFactor,
-      frustumHalfH * state.sunYFactor,
-      -7.0,
-    );
-    sunGroup.scale.setScalar(bodyScale);
+    const isLandscape = camera.aspect >= 1.05;
+    if (isLandscape) {
+      sunGroup.position.set(
+        frustumHalfW * state.sunDesktopX,
+        frustumHalfH * state.sunDesktopY,
+        -7.2,
+      );
+      sunGroup.scale.setScalar(0.92 + Math.min(state.celestialGlow, 1) * 0.14);
+      sunGlowMesh.scale.setScalar(1.35);
 
-    moonGroup.position.set(
-      frustumHalfW * state.moonXFactor,
-      frustumHalfH * state.moonYFactor,
-      -7.0,
-    );
-    moonGroup.scale.setScalar(bodyScale);
+      moonGroup.position.set(
+        frustumHalfW * state.moonDesktopX,
+        frustumHalfH * state.moonDesktopY,
+        -7.2,
+      );
+      moonGroup.scale.setScalar(0.94);
+      moonGlowMesh.scale.setScalar(1.18);
+    } else {
+      sunGroup.position.set(
+        frustumHalfW * state.sunXFactor,
+        frustumHalfH * state.sunYFactor,
+        -7.0,
+      );
+      sunGroup.scale.setScalar(0.82);
+      sunGlowMesh.scale.setScalar(0.88);
+
+      moonGroup.position.set(
+        frustumHalfW * state.moonXFactor,
+        frustumHalfH * state.moonYFactor,
+        -7.0,
+      );
+      moonGroup.scale.setScalar(0.82);
+      moonGlowMesh.scale.setScalar(0.9);
+    }
   };
 
   const updateSize = () => {
@@ -1300,7 +1356,8 @@ export function createAtmosphereScene(
       // Update sky uniforms
       skyUniforms.uTime.value = t;
       skyUniforms.uMouse.value.set(pointerUvX, pointerUvY);
-      skyUniforms.uBeamDir.value.set(state.beamDirectionX, state.beamDirectionY);
+      const beamDx = camera.aspect >= 1.05 ? state.beamDirectionX : -0.78;
+      skyUniforms.uBeamDir.value.set(beamDx, state.beamDirectionY);
       skyUniforms.uCloudOffset.value.set(cloudAccumX, cloudAccumY);
       skyUniforms.uSkyBottom.value.setRGB(...state.skyBottom);
       skyUniforms.uSkyMid.value.setRGB(...state.skyMid);
@@ -1336,17 +1393,26 @@ export function createAtmosphereScene(
       moonGlowUniforms.uIntensity.value = state.celestialGlow * (state.moonOpacity > 0.01 ? 1 : 0);
       moonGlowUniforms.uRingOpacity.value = state.celestialRingOpacity * Math.min(1, state.moonOpacity * 1.5);
 
-      // Cloud strata + brief lightning rim highlight
+      // Sculpted directional-lit cloud strata + brief lightning rim highlight
       for (let i = 0; i < mistLayers.length; i += 1) {
         const layer = mistLayers[i];
         layer.uniforms.uDrift.value.set(
           cloudAccumX * 1.45 * layer.speedFactor,
           cloudAccumY * 0.8,
         );
-        layer.uniforms.uOpacity.value = state.cloudOpacity * (i === 2 ? 0.42 : 1 - i * 0.15);
-        layer.uniforms.uMistColor.value.setRGB(...state.cloudColor);
+        layer.uniforms.uLightDir.value.set(
+          dominantGroup.position.x,
+          Math.max(2.0, dominantGroup.position.y),
+        );
+        layer.uniforms.uOpacity.value = state.cloudOpacity * (i === 2 ? 0.46 : 1 - i * 0.14);
+        layer.uniforms.uCoverage.value = state.cloudAmount;
+        layer.uniforms.uCloudHighlight.value.setRGB(...state.cloudHighlight);
+        layer.uniforms.uCloudShadow.value.setRGB(...state.cloudShadow);
         if (lightning > 0.01) {
-          layer.uniforms.uMistColor.value.lerp(new THREE.Color(0.76, 0.85, 1.0), lightning * 0.48);
+          layer.uniforms.uCloudHighlight.value.lerp(
+            new THREE.Color(0.84, 0.91, 1.0),
+            lightning * 0.55,
+          );
         }
       }
 
