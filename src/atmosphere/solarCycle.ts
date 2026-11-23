@@ -316,7 +316,7 @@ export function computeSolarCycle(
   const moonElev = Math.sin(nightProgress * Math.PI);
 
   const sunArc: CelestialArcPoint = {
-    xFactor: 0.91 - sunElev * 0.07,
+    xFactor: -(0.91 - sunElev * 0.07),
     yFactor: 0.34 + sunElev * 0.56,
     elevation: sunElev,
   };

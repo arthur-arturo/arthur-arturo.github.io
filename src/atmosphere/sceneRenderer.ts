@@ -308,7 +308,7 @@ const SUN_FRAGMENT_SHADER = `
     vec3 N = normalize(vNormalView);
     float facing = max(dot(N, vec3(0.0, 0.0, 1.0)), 0.0);
     float coreMask = smoothstep(0.08, 0.78, facing);
-    float softFalloff = pow(facing, 1.45);
+    float softFalloff = pow(facing, 1.2);
     float pulse = 0.96 + 0.04 * sin(uTime * 1.1 + vUv.y * 4.0);
 
     vec3 color = mix(uSunRim, uSunCore, coreMask) * pulse;
@@ -1149,40 +1149,23 @@ export function createAtmosphereScene(
   let frustumHalfH = 5.6;
 
   const updateCelestialPlacement = () => {
-    const isLandscape = camera.aspect >= 1.05;
-    if (isLandscape) {
-      sunGroup.position.set(
-        frustumHalfW * state.sunDesktopX,
-        frustumHalfH * state.sunDesktopY,
-        -7.2,
-      );
-      sunGroup.scale.setScalar(0.92 + Math.min(state.celestialGlow, 1) * 0.14);
-      sunGlowMesh.scale.setScalar(1.35);
+    const isPortrait = camera.aspect < 0.75;
+    const bodyScale = isPortrait ? 0.82 : 1.04;
+    sunGroup.position.set(
+      frustumHalfW * state.sunXFactor,
+      frustumHalfH * state.sunYFactor,
+      -7.0,
+    );
+    sunGroup.scale.setScalar(bodyScale);
+    sunGlowMesh.scale.setScalar(isPortrait ? 0.92 : 1.15);
 
-      moonGroup.position.set(
-        frustumHalfW * state.moonDesktopX,
-        frustumHalfH * state.moonDesktopY,
-        -7.2,
-      );
-      moonGroup.scale.setScalar(0.94);
-      moonGlowMesh.scale.setScalar(1.18);
-    } else {
-      sunGroup.position.set(
-        frustumHalfW * state.sunXFactor,
-        frustumHalfH * state.sunYFactor,
-        -7.0,
-      );
-      sunGroup.scale.setScalar(0.82);
-      sunGlowMesh.scale.setScalar(0.88);
-
-      moonGroup.position.set(
-        frustumHalfW * state.moonXFactor,
-        frustumHalfH * state.moonYFactor,
-        -7.0,
-      );
-      moonGroup.scale.setScalar(0.82);
-      moonGlowMesh.scale.setScalar(0.9);
-    }
+    moonGroup.position.set(
+      frustumHalfW * state.moonXFactor,
+      frustumHalfH * state.moonYFactor,
+      -7.0,
+    );
+    moonGroup.scale.setScalar(bodyScale);
+    moonGlowMesh.scale.setScalar(isPortrait ? 0.92 : 1.05);
   };
 
   const updateSize = () => {
@@ -1356,8 +1339,7 @@ export function createAtmosphereScene(
       // Update sky uniforms
       skyUniforms.uTime.value = t;
       skyUniforms.uMouse.value.set(pointerUvX, pointerUvY);
-      const beamDx = camera.aspect >= 1.05 ? state.beamDirectionX : -0.78;
-      skyUniforms.uBeamDir.value.set(beamDx, state.beamDirectionY);
+      skyUniforms.uBeamDir.value.set(state.beamDirectionX, state.beamDirectionY);
       skyUniforms.uCloudOffset.value.set(cloudAccumX, cloudAccumY);
       skyUniforms.uSkyBottom.value.setRGB(...state.skyBottom);
       skyUniforms.uSkyMid.value.setRGB(...state.skyMid);

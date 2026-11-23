@@ -22,10 +22,6 @@ export interface AtmosphericVisualTargets {
   sunYFactor: number;
   moonXFactor: number;
   moonYFactor: number;
-  sunDesktopX: number;
-  sunDesktopY: number;
-  moonDesktopX: number;
-  moonDesktopY: number;
   beamMix: number;
   beamDirectionX: number;
   beamDirectionY: number;
@@ -176,12 +172,6 @@ export function computeAtmosphericTargets(
   const celestialRingOpacity =
     (solar.isDay ? 0.14 * solarIntensity : 0.17) * clamp(cloudDim, 0.25, 1);
 
-  // Panoramic desktop orbital sweep across upper sky vault
-  const sunDesktopX = (solar.dayProgress * 2 - 1) * 0.66;
-  const sunDesktopY = 0.58 + solar.sunArc.elevation * 0.36;
-  const moonDesktopX = (solar.nightProgress * 2 - 1) * 0.62;
-  const moonDesktopY = 0.6 + solar.moonArc.elevation * 0.32;
-
   // Sculpted 3D cloud visibility & two-tone directional palette
   const cloudAmount = clamp(
     (isOvercast
@@ -251,13 +241,9 @@ export function computeAtmosphericTargets(
     sunYFactor: solar.sunArc.yFactor,
     moonXFactor: solar.moonArc.xFactor,
     moonYFactor: solar.moonArc.yFactor,
-    sunDesktopX,
-    sunDesktopY,
-    moonDesktopX,
-    moonDesktopY,
     beamMix: dayMix * solarIntensity * (1 - weather.fogIntensity * 0.65),
-    beamDirectionX: Math.abs(sunDesktopX) > 0.05 ? clamp(-sunDesktopX * 0.65, -0.7, 0.7) : -0.12,
-    beamDirectionY: clamp(-0.26 - solar.sunArc.elevation * 0.52, -0.78, -0.2),
+    beamDirectionX: solar.isDay ? 0.78 : -0.78,
+    beamDirectionY: clamp(-0.32 - (solar.isDay ? solar.sunArc.elevation : solar.moonArc.elevation) * 0.38, -0.72, -0.32),
     cloudAmount,
     cloudDarkness: clamp(weather.rainIntensity * 0.75 + (isOvercast ? 0.28 : 0), 0, 0.9),
     cloudOpacity,
@@ -330,10 +316,6 @@ export function stepVisualState(
   cur.sunYFactor += (target.sunYFactor - cur.sunYFactor) * rate;
   cur.moonXFactor += (target.moonXFactor - cur.moonXFactor) * rate;
   cur.moonYFactor += (target.moonYFactor - cur.moonYFactor) * rate;
-  cur.sunDesktopX += (target.sunDesktopX - cur.sunDesktopX) * rate;
-  cur.sunDesktopY += (target.sunDesktopY - cur.sunDesktopY) * rate;
-  cur.moonDesktopX += (target.moonDesktopX - cur.moonDesktopX) * rate;
-  cur.moonDesktopY += (target.moonDesktopY - cur.moonDesktopY) * rate;
   cur.beamMix += (target.beamMix - cur.beamMix) * rate;
   cur.beamDirectionX += (target.beamDirectionX - cur.beamDirectionX) * rate;
   cur.beamDirectionY += (target.beamDirectionY - cur.beamDirectionY) * rate;

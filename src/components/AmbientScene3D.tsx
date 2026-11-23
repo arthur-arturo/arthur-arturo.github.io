@@ -69,7 +69,8 @@ export function AmbientScene3D() {
     const isDayBody = solar.nightBlend < 0.55;
     const arc = isDayBody ? solar.sunArc : solar.moonArc;
     const topPercent = `${Math.max(4, Math.min(62, (1 - arc.yFactor) * 100)).toFixed(1)}%`;
-    const rightPercent = `${Math.max(3, Math.min(18, (1 - arc.xFactor) * 100)).toFixed(1)}%`;
+    const edgePercent = `${Math.max(3, Math.min(18, (1 - Math.abs(arc.xFactor)) * 100)).toFixed(1)}%`;
+    const horizontalStyle = isDayBody ? { left: edgePercent } : { right: edgePercent };
     const bodyOpacity =
       weather.precipitation !== "none"
         ? 0.25
@@ -91,7 +92,7 @@ export function AmbientScene3D() {
           className="absolute h-36 w-36 rounded-full blur-2xl transition-all duration-1000"
           style={{
             top: topPercent,
-            right: rightPercent,
+            ...horizontalStyle,
             opacity: bodyOpacity * 0.6,
             background: solar.skyPalette.glow,
           }}
@@ -101,7 +102,7 @@ export function AmbientScene3D() {
             className="absolute h-20 w-20 rounded-full transition-all duration-1000"
             style={{
               top: topPercent,
-              right: rightPercent,
+              ...horizontalStyle,
               opacity: bodyOpacity,
               background: `radial-gradient(circle at 35% 35%, ${solar.skyPalette.sunCore}, ${solar.skyPalette.sunRim})`,
               boxShadow: `0 0 42px ${solar.skyPalette.glow}`,
@@ -111,7 +112,7 @@ export function AmbientScene3D() {
           <svg
             viewBox="0 0 64 64"
             className="absolute h-20 w-20 transition-all duration-1000"
-            style={{ top: topPercent, right: rightPercent, opacity: bodyOpacity }}
+            style={{ top: topPercent, ...horizontalStyle, opacity: bodyOpacity }}
           >
             <circle cx="32" cy="32" r="22" fill="#231c3d" opacity="0.45" />
             <path
