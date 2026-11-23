@@ -9,7 +9,6 @@ import { LanguageCard } from "../components/LanguageCard";
 import { NoiseOverlay } from "../components/NoiseOverlay";
 import { ScrollHorizon } from "../components/ScrollHorizon";
 import { SoundCard } from "../components/SoundCard";
-import { SpotifyCard } from "../components/SpotifyCard";
 import { TechnologyGrid } from "../components/TechnologyGrid";
 import { certifications, profile, projects } from "../data/portfolio";
 import { useLanyardPresence } from "../hooks/useLanyardPresence";
@@ -268,18 +267,15 @@ export function HomePage() {
           </div>
         </a>
 
-        {/* 8. Spotify Card (2x1) */}
-        <SpotifyCard presence={presence} enterDelayMs={345} />
-
-        {/* 9. Discord Card (1x1) */}
+        {/* 8. Discord Card (2x1) */}
         <DiscordCard
           presence={presence}
           connection={connection}
           userId={profile.discordId}
-          enterDelayMs={385}
+          enterDelayMs={345}
         />
 
-        {/* 10. Email Card (1x1) */}
+        {/* 9. Email Card (1x1) */}
         <a
           href={`mailto:${profile.email}`}
           target="_blank"
@@ -288,7 +284,7 @@ export function HomePage() {
           aria-label={t("email")}
           onPointerMove={tilt.onPointerMove}
           onPointerLeave={tilt.onPointerLeave}
-          style={{ "--enter-delay": "420ms" } as CSSProperties}
+          style={{ "--enter-delay": "385ms" } as CSSProperties}
           className="bento-card bento-card-interactive bento-enter relative col-span-1 flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-3xl bg-[#4032ff9c] text-white dark:bg-[#7785ff56]"
         >
           <ExternalArrow />
@@ -301,30 +297,7 @@ export function HomePage() {
           </svg>
         </a>
 
-        {/* 11. Tutor / About Card (1x1) */}
-        <Link
-          className="bento-card bento-card-interactive bento-enter relative col-span-1 flex aspect-square cursor-pointer flex-col items-center justify-center overflow-hidden rounded-3xl bg-[#000000d8] p-3 text-white dark:bg-[#242424c0]"
-          to="/about"
-          data-sound="card"
-          aria-label={t("tutor")}
-          onPointerMove={tilt.onPointerMove}
-          onPointerLeave={tilt.onPointerLeave}
-          style={{ "--enter-delay": "455ms" } as CSSProperties}
-        >
-          <ExternalArrow />
-          <GraduationCap
-            className="h-9 w-9 sm:h-12 sm:w-12 md:h-16 md:w-16 lg:h-20 lg:w-20"
-            aria-hidden="true"
-          />
-          <span className="mt-1.5 text-center text-[10px] font-semibold leading-tight sm:text-xs md:text-sm lg:text-base">
-            {t("tutor")}
-          </span>
-        </Link>
-
-        {/* 12. Systems & AI Focus Card (2x1) */}
-        <FocusCard enterDelayMs={490} />
-
-        {/* 13. Certifications Stat Card (1x1) */}
+        {/* 10. Certifications Stat Card (1x1) */}
         <Link
           className="bento-card bento-card-interactive bento-enter relative col-span-1 flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-3xl bg-[#2ab9adb9] p-2.5 text-white sm:p-3 md:p-4"
           to="/about"
@@ -332,7 +305,7 @@ export function HomePage() {
           aria-label={t("certifications")}
           onPointerMove={tilt.onPointerMove}
           onPointerLeave={tilt.onPointerLeave}
-          style={{ "--enter-delay": "525ms" } as CSSProperties}
+          style={{ "--enter-delay": "425ms" } as CSSProperties}
         >
           <ExternalArrow />
           <div className="flex flex-col items-center justify-center pt-3 text-center sm:pt-3.5 lg:pt-0">
@@ -347,6 +320,36 @@ export function HomePage() {
             </p>
           </div>
         </Link>
+
+        {/* 11. Tutor / About Card (2x1) */}
+        <Link
+          className="bento-card bento-card-interactive bento-enter relative col-span-2 flex h-full w-full cursor-pointer flex-col justify-between overflow-hidden rounded-3xl bg-[#000000d8] p-3.5 text-white dark:bg-[#242424c0] sm:p-5 md:col-span-2 md:aspect-[2/1] md:p-7 lg:p-8"
+          to="/about"
+          data-sound="card"
+          aria-label={t("tutor")}
+          onPointerMove={tilt.onPointerMove}
+          onPointerLeave={tilt.onPointerLeave}
+          style={{ "--enter-delay": "460ms" } as CSSProperties}
+        >
+          <ExternalArrow />
+          <div className="flex items-center pr-6">
+            <GraduationCap
+              className="h-6 w-6 shrink-0 text-white/95 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12"
+              aria-hidden="true"
+            />
+          </div>
+          <div className="min-w-0">
+            <h2 className="truncate text-xs font-bold leading-tight text-white sm:text-base md:text-xl lg:text-2xl">
+              {t("tutor")}
+            </h2>
+            <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-white/80 sm:mt-1 sm:text-xs md:text-sm lg:text-base">
+              {t("tutorDescription")}
+            </p>
+          </div>
+        </Link>
+
+        {/* 12. Systems & AI Focus Card (2x1 desktop, 3x1 mobile) */}
+        <FocusCard enterDelayMs={495} />
       </div>
 
       <ScrollHorizon />

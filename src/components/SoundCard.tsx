@@ -1,4 +1,4 @@
-import { Disc3, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Disc3 } from "lucide-react";
 import { useEffect, useRef, type CSSProperties } from "react";
 import * as THREE from "three";
 import { useAudio } from "../audio/AudioProvider";
@@ -166,7 +166,7 @@ export function SoundCard({ enterDelayMs = 125 }: { enterDelayMs?: number }) {
     rimLight.position.set(-3, -2, 2.5);
     scene.add(rimLight);
 
-    // Central soft core halo behind the play button
+    // Central soft core halo behind the centered vinyl disc
     const haloGeom = new THREE.PlaneGeometry(2.7, 2.7);
     const haloUniforms = {
       uColor: { value: new THREE.Color("#9ca3af") },
@@ -180,7 +180,7 @@ export function SoundCard({ enterDelayMs = 125 }: { enterDelayMs?: number }) {
       depthWrite: false,
     });
     const haloMesh = new THREE.Mesh(haloGeom, haloMat);
-    haloMesh.position.set(0, 0.1, -0.5);
+    haloMesh.position.set(0, 0.02, -0.5);
     scene.add(haloMesh);
 
     // 14 extruded 3D musical symbols (single eighth & beamed eighth notes) radiating from core
@@ -273,11 +273,11 @@ export function SoundCard({ enterDelayMs = 125 }: { enterDelayMs?: number }) {
         for (let i = 0; i < notes.length; i += 1) {
           const n = notes[i];
           const progress = (elapsed + n.phase) % 1;
-          const radial = 0.24 + progress * 1.48;
+          const radial = 0.22 + progress * 1.48;
           const arcAngle = n.angle + Math.sin(t * 1.1 + i) * n.wobbleAmp * (0.5 + activeMix);
 
           const x = Math.cos(arcAngle) * radial;
-          const y = Math.sin(arcAngle) * radial * 0.86 + 0.08 + progress * 0.24;
+          const y = Math.sin(arcAngle) * radial * 0.86 + 0.02;
           const z = Math.sin(progress * Math.PI) * 0.85 - 0.15;
 
           const envelope = Math.sin(progress * Math.PI);
@@ -357,8 +357,7 @@ export function SoundCard({ enterDelayMs = 125 }: { enterDelayMs?: number }) {
       style={{ "--enter-delay": `${enterDelayMs}ms` } as CSSProperties}
       aria-pressed={enabled}
       aria-label={t("soundToggleAria")}
-      title={enabled ? t("musicPlaying") : t("musicPaused")}
-      className={`bento-card bento-card-interactive bento-enter relative col-span-1 aspect-square cursor-pointer overflow-hidden rounded-3xl transition-colors duration-500 ${
+      className={`bento-card bento-card-interactive bento-enter group relative col-span-1 aspect-square cursor-pointer overflow-hidden rounded-3xl outline-none transition-colors duration-500 focus-visible:ring-2 focus-visible:ring-purple-300/70 ${
         enabled
           ? "bg-gradient-to-br from-[#2b0b58c4] via-[#1c073acc] to-[#110424e0] shadow-[0_0_32px_-8px_rgba(192,132,252,0.5)] dark:from-[#af72ff56] dark:via-[#5a2b9a5e] dark:to-[#1a0836b8]"
           : "bg-[#1c053a9c] dark:bg-[#23193280]"
@@ -375,56 +374,44 @@ export function SoundCard({ enterDelayMs = 125 }: { enterDelayMs?: number }) {
       />
 
       <div className="relative z-10 flex h-full w-full flex-col justify-between p-2.5 text-white sm:p-3.5 md:p-4 lg:p-5">
-        {/* Top bar: Disc + Status badge + Volume glyph */}
-        <div className="flex items-center justify-between gap-1.5">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <Disc3
-              className={`h-4 w-4 shrink-0 transition-colors duration-300 sm:h-5 sm:w-5 md:h-6 md:w-6 ${
-                enabled ? "animate-[spin_6s_linear_infinite] text-purple-200" : "text-zinc-400"
-              }`}
-              aria-hidden="true"
-            />
-            <span
-              className={`hidden truncate rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider transition-colors duration-300 lg:inline-flex xl:text-[10px] ${
-                enabled
-                  ? "border-purple-300/30 bg-purple-400/20 text-purple-100"
-                  : "border-white/10 bg-white/5 text-zinc-400"
-              }`}
-            >
-              {enabled ? t("musicPlaying") : t("musicPaused")}
-            </span>
-          </div>
-
-          {enabled ? (
-            <Volume2 className="h-3.5 w-3.5 shrink-0 text-purple-100 sm:h-4 sm:w-4" aria-hidden="true" />
-          ) : (
-            <VolumeX className="h-3.5 w-3.5 shrink-0 text-zinc-400 sm:h-4 sm:w-4" aria-hidden="true" />
-          )}
+        {/* Top bar: Listening now label where disc + paused badge previously sat */}
+        <div className="flex items-center">
+          <p
+            className={`truncate text-[6.5px] font-semibold uppercase tracking-tight transition-colors duration-300 sm:text-[10px] sm:tracking-wide md:text-[11px] lg:tracking-[0.14em] ${
+              enabled ? "text-purple-100/95" : "text-white/75"
+            }`}
+          >
+            {t("listeningNow")}
+          </p>
         </div>
 
-        {/* Center translucent Play / Pause button */}
+        {/* Center interactive vinyl disc emitting the 3D musical symbols */}
         <div className="flex items-center justify-center">
           <span
-            className={`flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-300 sm:h-11 sm:w-11 md:h-12 md:w-12 lg:h-14 lg:w-14 ${
+            className={`relative flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-500 group-hover:scale-105 group-active:scale-95 sm:h-14 sm:w-14 md:h-16 md:w-16 lg:h-[74px] lg:w-[74px] ${
               enabled
-                ? "scale-105 border-white/30 bg-white/20 text-white shadow-[0_0_24px_rgba(216,180,254,0.45)]"
-                : "border-white/10 bg-white/10 text-zinc-300/90"
+                ? "scale-105 border-purple-200/40 bg-gradient-to-br from-purple-400/30 via-fuchsia-500/20 to-indigo-900/40 text-purple-100 shadow-[0_0_28px_rgba(216,180,254,0.55)]"
+                : "border-white/20 bg-gradient-to-br from-zinc-500/30 via-zinc-700/40 to-zinc-900/50 text-zinc-300 shadow-[0_0_20px_rgba(0,0,0,0.3)]"
             }`}
             aria-hidden="true"
           >
-            {enabled ? (
-              <Pause className="h-3.5 w-3.5 fill-current sm:h-5 sm:w-5" />
-            ) : (
-              <Play className="ml-0.5 h-3.5 w-3.5 fill-current sm:h-5 sm:w-5" />
-            )}
+            <Disc3
+              className={`h-full w-full p-1.5 transition-colors duration-300 sm:p-2 ${
+                enabled ? "animate-[spin_5.5s_linear_infinite] text-purple-100" : "text-zinc-300/90"
+              }`}
+            />
+            <span
+              className={`pointer-events-none absolute h-2 w-2 rounded-full transition-all duration-300 sm:h-2.5 sm:w-2.5 ${
+                enabled
+                  ? "bg-purple-200 shadow-[0_0_10px_rgba(233,213,255,0.95)]"
+                  : "bg-zinc-400/80"
+              }`}
+            />
           </span>
         </div>
 
         {/* Bottom track metadata + equalizer bars */}
         <div className="min-w-0 text-left">
-          <p className="hidden truncate text-[10px] font-semibold uppercase tracking-wider text-purple-200/80 lg:block">
-            {t("listeningNow")}
-          </p>
           <p className="truncate text-[10px] font-bold leading-tight text-white sm:text-xs md:text-sm">
             Still I Love You
           </p>

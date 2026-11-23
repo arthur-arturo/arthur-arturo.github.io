@@ -16,7 +16,7 @@ export function FocusCard({ enterDelayMs = 490 }: { enterDelayMs?: number }) {
       onPointerMove={tilt.onPointerMove}
       onPointerLeave={tilt.onPointerLeave}
       style={{ "--enter-delay": `${enterDelayMs}ms` } as CSSProperties}
-      className="bento-card bento-card-interactive bento-enter group order-last relative col-span-3 row-span-1 min-h-[152px] overflow-hidden rounded-3xl bg-[#281557a8] text-white dark:bg-[#5e46b85c] md:order-none md:col-span-2 md:min-h-0"
+      className="bento-card bento-card-interactive bento-enter group relative col-span-3 row-span-1 aspect-[2/1] overflow-hidden rounded-3xl bg-[#281557a8] text-white dark:bg-[#5e46b85c] md:col-span-2 md:aspect-[2/1]"
     >
       {/* Cohesive 3D geometric crystal/rings accent */}
       <div

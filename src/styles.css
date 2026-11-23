@@ -404,12 +404,21 @@ html.dark[data-atmosphere="rain"] {
   animation: skill-tile-ring 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Luminous bottom scroll horizon with progressive blur */
+/* Luminous bottom scroll horizon with JS-interpolated progressive blur */
 .scroll-horizon-veil {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  -webkit-mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.68) 38%, transparent 100%);
-  mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.68) 38%, transparent 100%);
+  -webkit-mask-image: linear-gradient(
+    to top,
+    #000 0%,
+    rgba(0, 0, 0, 0.72) 42%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to top,
+    #000 0%,
+    rgba(0, 0, 0, 0.72) 42%,
+    transparent 100%
+  );
+  will-change: backdrop-filter;
 }
 
 @keyframes horizon-glow-breathe {
