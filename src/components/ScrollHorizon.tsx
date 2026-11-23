@@ -110,11 +110,10 @@ export function ScrollHorizon() {
       const docEl = document.documentElement;
       const maxScroll = Math.max(0, docEl.scrollHeight - window.innerHeight);
       const overflowFactor = Math.max(0, Math.min(1, (maxScroll - 90) / 70));
-      const topFade = Math.max(0, Math.min(1, 1 - window.scrollY / 260));
       const remaining = Math.max(0, maxScroll - window.scrollY);
-      const bottomFade = Math.max(0, Math.min(1, remaining / 120));
+      const bottomFade = Math.max(0, Math.min(1, remaining / 160));
 
-      targetRef.current = readyRef.current ? overflowFactor * Math.min(topFade, bottomFade) : 0;
+      targetRef.current = readyRef.current ? overflowFactor * bottomFade : 0;
       ensureLoop();
     };
 
@@ -145,7 +144,7 @@ export function ScrollHorizon() {
 
   const handleScrollDown = () => {
     const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-    const targetY = Math.min(window.innerHeight * 0.84, maxScroll);
+    const targetY = Math.min(window.scrollY + window.innerHeight * 0.72, maxScroll);
     window.scrollTo({ top: targetY, behavior: "smooth" });
   };
 
