@@ -23,23 +23,23 @@ html.dark {
 }
 
 html[data-atmosphere="overcast-day"] {
-  --env-bg: #cfd1dc;
-  --env-specular: 0.22;
-  --env-rim: rgba(255, 255, 255, 0.26);
-  --env-spot-color: rgba(255, 255, 255, 0.09);
-  --env-card-filter: saturate(0.7) contrast(0.94) brightness(0.96);
-  --env-veil-opacity: 0.42;
-  --env-veil-color: rgba(204, 207, 222, 0.62);
+  --env-bg: #e2e4ee;
+  --env-specular: 0.36;
+  --env-rim: rgba(255, 255, 255, 0.28);
+  --env-spot-color: rgba(255, 255, 255, 0.12);
+  --env-card-filter: saturate(0.84) contrast(0.96) brightness(0.98);
+  --env-veil-opacity: 0.16;
+  --env-veil-color: rgba(216, 219, 234, 0.42);
 }
 
 html.dark[data-atmosphere="overcast-day"] {
   --env-bg: #12121a;
-  --env-specular: 0.22;
-  --env-rim: rgba(220, 222, 238, 0.12);
-  --env-spot-color: rgba(215, 218, 234, 0.07);
-  --env-card-filter: saturate(0.72) contrast(0.94) brightness(0.94);
-  --env-veil-opacity: 0.44;
-  --env-veil-color: rgba(22, 23, 34, 0.68);
+  --env-specular: 0.32;
+  --env-rim: rgba(220, 222, 238, 0.14);
+  --env-spot-color: rgba(215, 218, 234, 0.09);
+  --env-card-filter: saturate(0.84) contrast(0.96) brightness(0.96);
+  --env-veil-opacity: 0.24;
+  --env-veil-color: rgba(22, 23, 34, 0.56);
 }
 
 html[data-atmosphere="night-clear"],

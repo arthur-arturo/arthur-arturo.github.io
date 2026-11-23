@@ -126,7 +126,7 @@ const SKY_FRAGMENT_SHADER = `
     vec3 nightCol = mix(nightLight, nightDark, uIsDark);
 
     vec3 clearDayDark = mix(vec3(0.06, 0.025, 0.12), vec3(0.16, 0.075, 0.28), uv.y);
-    vec3 clearDayLight = mix(vec3(0.96, 0.92, 1.0), vec3(0.88, 0.82, 0.99), uv.y);
+    vec3 clearDayLight = mix(vec3(0.95, 0.92, 0.99), vec3(0.84, 0.82, 0.98), uv.y);
     vec3 goldenTintLight = mix(vec3(0.99, 0.90, 0.88), vec3(0.93, 0.78, 0.92), uv.y);
     vec3 goldenTintDark = mix(vec3(0.11, 0.04, 0.14), vec3(0.24, 0.10, 0.22), uv.y);
     vec3 clearCol = mix(
@@ -136,7 +136,7 @@ const SKY_FRAGMENT_SHADER = `
     );
 
     vec3 overDark = mix(vec3(0.07, 0.072, 0.10), vec3(0.12, 0.125, 0.165), uv.y);
-    vec3 overLight = mix(vec3(0.76, 0.77, 0.83), vec3(0.65, 0.67, 0.74), uv.y);
+    vec3 overLight = mix(vec3(0.86, 0.87, 0.93), vec3(0.76, 0.78, 0.87), uv.y);
     vec3 overCol = mix(overLight, overDark, uIsDark);
 
     vec3 rainDark = mix(vec3(0.035, 0.045, 0.085), vec3(0.085, 0.105, 0.18), uv.y);
@@ -152,7 +152,7 @@ const SKY_FRAGMENT_SHADER = `
     // 2. Corner celestial radial & diagonal volumetric wash (from top-right moon/sun)
     vec2 fromCorner = uv - uCelestialUv;
     float cornerDist = length(fromCorner * vec2(1.45, 1.0));
-    float cloudDim = 1.0 - clamp(uMoodWeights.y * 0.65 + uCloudCover * 0.45 + uMoodWeights.w * 0.7, 0.0, 0.85);
+    float cloudDim = 1.0 - clamp(uMoodWeights.y * 0.48 + uCloudCover * 0.25 + uMoodWeights.w * 0.65, 0.0, 0.72);
 
     // Diagonal sweep heading down-left from the upper-right corner
     vec2 diagDir = normalize(vec2(-0.78, -0.62));
@@ -180,19 +180,25 @@ const SKY_FRAGMENT_SHADER = `
       float sunRays = smoothstep(0.3, 0.95, rays * 0.52 + rayNoise * 0.6) * beamSpread;
       float sunCoreGlow = exp(-cornerDist * cornerDist * 3.8);
 
-      vec3 daySunHue = mix(vec3(1.0, 0.94, 0.96), vec3(0.98, 0.84, 0.68), uSunsetMix);
-      float dayFactor = (uMoodWeights.x + uMoodWeights.y * 0.28) * cloudDim * mix(0.38, 0.44, uIsDark);
-      col += daySunHue * (sunCoreGlow * 0.8 + sunRays * 0.7) * dayFactor;
+      vec3 daySunHue = mix(vec3(1.0, 0.85, 0.56), vec3(1.0, 0.70, 0.44), uSunsetMix);
+      float dayFactor = (uMoodWeights.x + uMoodWeights.y * 0.38) * cloudDim;
+      vec3 lightSunCol = mix(
+        col,
+        daySunHue,
+        clamp((sunCoreGlow * 0.65 + sunRays * 0.42) * dayFactor, 0.0, 0.72)
+      );
+      vec3 darkSunCol = col + daySunHue * (sunCoreGlow * 0.8 + sunRays * 0.7) * dayFactor * 0.44;
+      col = mix(lightSunCol, darkSunCol, uIsDark);
     }
 
     // 3. Soft overcast/rain cloud canopy
-    float cloudAmount = clamp(uMoodWeights.y * (0.68 + uCloudCover * 0.32) + uMoodWeights.w * 0.58 + uCloudCover * 0.22, 0.0, 1.0);
+    float cloudAmount = clamp(uMoodWeights.y * (0.58 + uCloudCover * 0.28) + uMoodWeights.w * 0.52 + uCloudCover * 0.22, 0.0, 0.9);
     if (cloudAmount > 0.02) {
       float clA = fbm(uv * vec2(3.1, 2.0) + vec2(uTime * 0.022, 0.1));
       float clB = fbm(uv * vec2(4.6, 2.6) - vec2(uTime * 0.015, 0.35));
       float cloudPattern = smoothstep(0.28, 0.82, mix(clA, clB, 0.48));
-      vec3 cloudTone = mix(vec3(0.84, 0.85, 0.90), vec3(0.20, 0.21, 0.29), uIsDark);
-      col = mix(col, cloudTone, cloudPattern * cloudAmount * 0.46);
+      vec3 cloudTone = mix(vec3(0.96, 0.95, 0.99), vec3(0.22, 0.23, 0.31), uIsDark);
+      col = mix(col, cloudTone, cloudPattern * cloudAmount * 0.34);
     }
 
     // 4. Distant storm lightning bloom
@@ -298,19 +304,19 @@ const SUN_FRAGMENT_SHADER = `
     if (uOpacity <= 0.004) discard;
     vec3 N = normalize(vNormalView);
     float facing = max(dot(N, vec3(0.0, 0.0, 1.0)), 0.0);
-    float limb = pow(1.0 - facing, 1.8);
+    float limb = pow(1.0 - facing, 1.35);
     float pulse = 0.96 + 0.04 * sin(uTime * 1.1 + vUv.y * 4.0);
 
-    vec3 coreDay = vec3(1.0, 0.97, 0.92);
-    vec3 rimDay = vec3(0.99, 0.82, 0.95);
-    vec3 coreSunset = vec3(1.0, 0.86, 0.68);
-    vec3 rimSunset = vec3(0.95, 0.55, 0.72);
+    vec3 coreDay = vec3(1.0, 0.96, 0.80);
+    vec3 rimDay = vec3(1.0, 0.70, 0.30);
+    vec3 coreSunset = vec3(1.0, 0.87, 0.62);
+    vec3 rimSunset = vec3(0.98, 0.48, 0.42);
 
     vec3 core = mix(coreDay, coreSunset, uSunsetMix);
     vec3 rim = mix(rimDay, rimSunset, uSunsetMix);
     vec3 color = mix(core, rim, limb) * pulse;
 
-    float alpha = clamp(uOpacity * (0.82 + 0.18 * limb), 0.0, 0.96);
+    float alpha = clamp(uOpacity * (0.92 + 0.08 * limb), 0.0, 0.98);
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -627,15 +633,28 @@ function computeTargetState(
 
   const mistOpacity = isOvercast
     ? isDark
-      ? 0.44 + cloudCover * 0.22
-      : 0.52 + cloudCover * 0.22
+      ? 0.28 + cloudCover * 0.14
+      : 0.24 + cloudCover * 0.14
     : isRain
       ? isDark
-        ? 0.36
-        : 0.44
-      : cloudCover > 0.45
-        ? cloudCover * 0.2
+        ? 0.32
+        : 0.30
+      : isClearDay && cloudCover > 0.35
+        ? 0.06 + (cloudCover - 0.35) * 0.24
         : 0.02;
+
+  const sunOpacity = !isDay
+    ? 0.0
+    : isRain
+      ? 0.16
+      : isOvercast
+        ? 0.36 * clamp(1 - Math.max(0, cloudCover - 0.75) * 1.4, 0.55, 1)
+        : (isDark ? 0.92 : 0.96) * clamp(1 - cloudCover * 0.22, 0.76, 1.0);
+
+  const celestialGlow = isDay
+    ? (isOvercast ? 0.34 : isRain ? 0.16 : isDark ? 0.52 : 0.68) *
+      clamp(1 - cloudCover * 0.22, 0.72, 1.0)
+    : (isDark ? 0.42 : 0.28) * Math.max(0.22, cloudDim);
 
   return {
     targetActiveLeaves,
@@ -644,10 +663,10 @@ function computeTargetState(
     starOpacity: !isDay ? (isDark ? 0.88 : 0.3) * cloudDim : 0.0,
     dayDustOpacity: isClearDay ? (isDark ? 0.32 : 0.44) * cloudDim : 0.0,
     rainOpacity: isRain ? (isDark ? 0.5 : 0.4) : 0.0,
-    sunOpacity: isDay ? (isDark ? 0.88 : 0.92) * cloudDim : 0.0,
+    sunOpacity,
     moonOpacity: !isDay ? (isDark ? 0.96 : 0.54) * Math.max(0.25, cloudDim) : 0.0,
-    celestialGlow: (isDay ? (isDark ? 0.46 : 0.56) : isDark ? 0.42 : 0.28) * Math.max(0.22, cloudDim),
-    celestialRingOpacity: (isDay ? 0.16 : 0.17) * cloudDim,
+    celestialGlow,
+    celestialRingOpacity: (isDay ? 0.16 : 0.17) * Math.max(0.45, cloudDim),
     sunsetMix,
     clearWeight: isClearDay ? 1 : 0,
     overcastWeight: isOvercast ? 1 : 0,
@@ -798,6 +817,7 @@ export function AmbientScene3D() {
         uMistColor: { value: THREE.Color };
       };
     }> = [];
+    const mistDepths = [-8.6, -7.8, -5.6];
     for (let i = 0; i < 3; i += 1) {
       const uniforms = {
         uTime: { value: 0 },
@@ -813,7 +833,7 @@ export function AmbientScene3D() {
         depthWrite: false,
       });
       const mesh = new THREE.Mesh(mistGeom, mat);
-      mesh.position.set(0, 0, -5.0 + i * 1.4);
+      mesh.position.set(0, 0, mistDepths[i]);
       scene.add(mesh);
       mistLayers.push({ mesh, uniforms });
     }
@@ -1201,25 +1221,62 @@ export function AmbientScene3D() {
     };
     window.addEventListener("portfolio:ripple", handleRippleEvent);
 
+    const initialEnv = envRef.current;
+    const initialDark = themeRef.current === "dark";
+    const initialTargets = computeTargetState(
+      initialEnv.mood,
+      initialEnv.windSpeed,
+      initialEnv.windIntensity,
+      initialEnv.cloudCover,
+      initialEnv.isDay,
+      initialEnv.localHour,
+      initialDark,
+    );
+
     const currentState = {
-      mistOpacity: 0,
-      starOpacity: 0,
-      dayDustOpacity: 0,
-      rainOpacity: 0,
-      sunOpacity: 0,
-      moonOpacity: 0,
-      celestialGlow: 0.3,
-      celestialRingOpacity: 0.14,
-      sunsetMix: 0,
-      clearWeight: 0,
-      overcastWeight: 0,
-      nightWeight: 1,
-      rainWeight: 0,
-      windStrength: 0.2,
-      cloudCover: 0.1,
-      isDark: themeRef.current === "dark" ? 1 : 0,
+      mistOpacity: initialTargets.mistOpacity,
+      starOpacity: initialTargets.starOpacity,
+      dayDustOpacity: initialTargets.dayDustOpacity,
+      rainOpacity: initialTargets.rainOpacity,
+      sunOpacity: initialTargets.sunOpacity,
+      moonOpacity: initialTargets.moonOpacity,
+      celestialGlow: initialTargets.celestialGlow,
+      celestialRingOpacity: initialTargets.celestialRingOpacity,
+      sunsetMix: initialTargets.sunsetMix,
+      clearWeight: initialTargets.clearWeight,
+      overcastWeight: initialTargets.overcastWeight,
+      nightWeight: initialTargets.nightWeight,
+      rainWeight: initialTargets.rainWeight,
+      windStrength: initialTargets.windStrength,
+      cloudCover: initialEnv.cloudCover,
+      isDark: initialDark ? 1 : 0,
       lightning: 0,
     };
+
+    skyUniforms.uMoodWeights.value.set(
+      currentState.clearWeight,
+      currentState.overcastWeight,
+      currentState.nightWeight,
+      currentState.rainWeight,
+    );
+    skyUniforms.uIsDark.value = currentState.isDark;
+    skyUniforms.uCloudCover.value = currentState.cloudCover;
+    skyUniforms.uSunsetMix.value = currentState.sunsetMix;
+    sunUniforms.uOpacity.value = currentState.sunOpacity;
+    sunUniforms.uSunsetMix.value = currentState.sunsetMix;
+    moonUniforms.uOpacity.value = currentState.moonOpacity;
+    moonUniforms.uIsDark.value = currentState.isDark;
+    celestialGlowUniforms.uColor.value.set(
+      initialEnv.isDay
+        ? initialTargets.sunsetMix > 0.5
+          ? "#ff9e68"
+          : "#ffd07a"
+        : initialDark
+          ? "#a8c5ff"
+          : "#c4b5fd",
+    );
+    celestialGlowUniforms.uIntensity.value = currentState.celestialGlow;
+    celestialGlowUniforms.uRingOpacity.value = currentState.celestialRingOpacity;
 
     let stormTimer = 3.4;
     const targetGlowColor = new THREE.Color();
@@ -1329,8 +1386,8 @@ export function AmbientScene3D() {
         targetGlowColor.set(
           env.isDay
             ? targets.sunsetMix > 0.5
-              ? "#ffbe98"
-              : "#f8dcff"
+              ? "#ff9e68"
+              : "#ffd07a"
             : isDark
               ? "#a8c5ff"
               : "#c4b5fd",
@@ -1344,15 +1401,19 @@ export function AmbientScene3D() {
           env.mood === "rain"
             ? isDark
               ? "#242c42"
-              : "#9ea9c2"
-            : isDark
-              ? "#282838"
-              : "#c7cad8",
+              : "#aeb8d0"
+            : env.mood === "overcast-day"
+              ? isDark
+                ? "#282838"
+                : "#d7dae8"
+              : isDark
+                ? "#2b2a3c"
+                : "#f8f7ff",
         );
         for (let i = 0; i < mistLayers.length; i += 1) {
           const layer = mistLayers[i];
           layer.uniforms.uTime.value = t * (0.8 + i * 0.25);
-          layer.uniforms.uOpacity.value = currentState.mistOpacity * (1 - i * 0.18);
+          layer.uniforms.uOpacity.value = currentState.mistOpacity * (i === 2 ? 0.42 : 1 - i * 0.15);
           layer.uniforms.uMistColor.value.lerp(targetMistColor, lerpRate);
         }
 

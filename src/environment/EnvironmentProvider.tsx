@@ -39,6 +39,42 @@ interface LiveWeatherData {
   cloudCover: number;
 }
 
+const WEATHER_CACHE_KEY = "portfolio-ba-weather-v1";
+const WEATHER_CACHE_TTL_MS = 15 * 60_000;
+
+function readCachedWeather(expectedIsDay: boolean): LiveWeatherData | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(WEATHER_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { savedAt?: number; data?: LiveWeatherData };
+    if (
+      typeof parsed?.savedAt !== "number" ||
+      Date.now() - parsed.savedAt >= WEATHER_CACHE_TTL_MS ||
+      !parsed.data ||
+      typeof parsed.data.temperature !== "number" ||
+      parsed.data.isDay !== expectedIsDay
+    ) {
+      return null;
+    }
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedWeather(data: LiveWeatherData) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      WEATHER_CACHE_KEY,
+      JSON.stringify({ savedAt: Date.now(), data }),
+    );
+  } catch {
+    // Ignore storage quota or privacy restrictions.
+  }
+}
+
 interface EnvironmentContextValue {
   environment: EnvironmentState;
 }
@@ -67,7 +103,8 @@ function classifyMood(data: LiveWeatherData): AtmosphereMood {
 
   if (isRain) return "rain";
   if (isDay) {
-    if (code === 2 || code === 3 || code === 45 || code === 48 || cloudCover >= 55) {
+    // Keep partly cloudy skies (WMO code 2, cloudCover < 80%) bright with the daytime Sun visible
+    if (code === 3 || code === 45 || code === 48 || cloudCover >= 80) {
       return "overcast-day";
     }
     return "clear-day";
@@ -82,7 +119,9 @@ function clamp(value: number, min: number, max: number) {
 export function EnvironmentProvider({ children }: { children: ReactNode }) {
   const { locale } = useLocale();
   const [now, setNow] = useState(() => new Date());
-  const [liveWeather, setLiveWeather] = useState<LiveWeatherData | null>(null);
+  const [liveWeather, setLiveWeather] = useState<LiveWeatherData | null>(() =>
+    readCachedWeather(isBuenosAiresDaytime(new Date())),
+  );
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(new Date()), 30_000);
@@ -107,14 +146,16 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
 
         const cur = result.current;
         if (cur && typeof cur.temperature_2m === "number") {
-          setLiveWeather({
+          const parsed: LiveWeatherData = {
             temperature: cur.temperature_2m,
             weatherCode: cur.weather_code ?? 0,
             isDay: cur.is_day === 1,
             windSpeed: cur.wind_speed_10m ?? 6,
             windDirection: cur.wind_direction_10m ?? 180,
             cloudCover: cur.cloud_cover ?? 15,
-          });
+          };
+          setLiveWeather(parsed);
+          writeCachedWeather(parsed);
         }
       } catch {
         // Keep derived local Buenos Aires day/night fallback when offline or aborted.
