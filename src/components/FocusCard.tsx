@@ -16,7 +16,7 @@ export function FocusCard({ enterDelayMs = 490 }: { enterDelayMs?: number }) {
       onPointerMove={tilt.onPointerMove}
       onPointerLeave={tilt.onPointerLeave}
       style={{ "--enter-delay": `${enterDelayMs}ms` } as CSSProperties}
-      className="bento-card bento-card-interactive bento-enter group relative col-span-3 row-span-1 aspect-[2/1] overflow-hidden rounded-3xl bg-[#281557a8] text-white dark:bg-[#5e46b85c] md:col-span-2 md:aspect-[2/1]"
+      className="bento-card bento-card-interactive bento-enter group relative col-span-3 row-span-1 aspect-[2/1] overflow-hidden rounded-3xl bg-[#281557a8] text-white dark:bg-[#5e46b85c] md:col-span-3 md:aspect-auto md:h-full"
     >
       {/* Cohesive 3D geometric crystal/rings accent */}
       <div
@@ -24,8 +24,8 @@ export function FocusCard({ enterDelayMs = 490 }: { enterDelayMs?: number }) {
         aria-hidden="true"
       >
         <div className="relative h-24 w-24 sm:h-28 sm:w-28 md:h-36 md:w-36 lg:h-40 lg:w-40">
-          <div className="absolute inset-0 rounded-full border border-white/10 bg-gradient-to-br from-purple-300/15 via-indigo-400/5 to-transparent shadow-[0_0_40px_rgba(167,139,250,0.18)] transition-transform duration-500 group-hover:scale-105" />
-          <div className="absolute inset-3.5 rotate-12 rounded-3xl border border-white/15 bg-white/5 backdrop-blur-sm transition-transform duration-500 group-hover:rotate-45" />
+          <div className="absolute inset-0 rounded-full border border-white/10 bg-gradient-to-br from-purple-300/20 via-indigo-400/5 to-transparent shadow-[0_0_40px_rgba(167,139,250,0.2)] transition-transform duration-500 group-hover:scale-105" />
+          <div className="absolute inset-3.5 rotate-12 rounded-3xl border border-white/20 bg-white/5 backdrop-blur-sm transition-transform duration-500 group-hover:rotate-45" />
           <div className="absolute inset-7 -rotate-12 rounded-2xl border border-purple-200/20 bg-gradient-to-tr from-white/10 to-transparent transition-transform duration-500 group-hover:rotate-12" />
         </div>
       </div>
@@ -35,17 +35,17 @@ export function FocusCard({ enterDelayMs = 490 }: { enterDelayMs?: number }) {
         aria-hidden="true"
       />
 
-      <div className="relative z-10 flex h-full w-full flex-col justify-between p-4 md:p-7 lg:p-8">
+      <div className="relative z-10 flex h-full w-full flex-col justify-between p-4 md:p-6 lg:p-8">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-purple-200/90 sm:text-xs">
             {t("focusBadge")}
           </p>
-          <h2 className="mt-1 max-w-[70%] text-sm font-bold leading-tight text-white sm:text-lg md:text-2xl lg:text-3xl">
+          <h2 className="mt-1 max-w-[72%] text-sm font-bold leading-tight text-white sm:text-lg md:text-2xl lg:text-3xl">
             {t("focusTitle")}
           </h2>
         </div>
 
-        <p className="max-w-[70%] text-xs leading-snug text-white/90 sm:text-sm md:text-base lg:text-lg">
+        <p className="max-w-[72%] text-xs leading-snug text-white/90 sm:text-sm md:text-base lg:text-lg">
           {t("focusDescription")}
         </p>
       </div>

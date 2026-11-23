@@ -185,9 +185,9 @@ export function HomePage() {
         {/* 5. Expanded Skills & AI Grid (3x1) */}
         <TechnologyGrid enterDelayMs={200} />
 
-        {/* 6. Unified Projects Card (2x1) */}
+        {/* 6. Unified Projects Card (3x1 desktop, 3x1 mobile) */}
         <Link
-          className="bento-card bento-card-interactive bento-enter group relative col-span-3 aspect-[2/1] overflow-hidden rounded-3xl md:col-span-2 md:aspect-[2/1]"
+          className="bento-card bento-card-interactive bento-enter group relative col-span-3 aspect-[2/1] overflow-hidden rounded-3xl md:col-span-3 md:aspect-auto md:h-full"
           to="/projects"
           data-sound="card"
           aria-label={t("projects")}
@@ -202,7 +202,7 @@ export function HomePage() {
             alt=""
             aria-hidden="true"
           />
-          <div className="relative z-10 flex h-full w-full flex-col justify-between p-4 text-white md:p-7 lg:p-8">
+          <div className="relative z-10 flex h-full w-full flex-col justify-between p-4 text-white md:p-6 lg:p-8">
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-base font-bold leading-tight sm:text-lg md:text-2xl lg:text-4xl">
                 {t("projects")}
@@ -228,46 +228,36 @@ export function HomePage() {
           </div>
         </Link>
 
-        {/* 7. GitHub Card (2x1) */}
+        {/* 7. GitHub Card (1x1) */}
         <a
           href={profile.github}
           target="_blank"
           rel="noopener noreferrer"
           data-sound="card"
+          aria-label={t("github")}
+          title={t("githubDescription")}
           onPointerMove={tilt.onPointerMove}
           onPointerLeave={tilt.onPointerLeave}
           style={{ "--enter-delay": "300ms" } as CSSProperties}
-          className="bento-card bento-card-interactive bento-enter group relative col-span-3 aspect-[2/1] cursor-pointer overflow-hidden rounded-3xl md:col-span-2 md:aspect-[2/1]"
-          aria-label="GitHub"
+          className="bento-card bento-card-interactive bento-enter group relative col-span-1 flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-3xl bg-[#0e0e14d6] text-white dark:bg-[#1a1826cc]"
         >
-          <div className="relative isolate flex h-full w-full flex-col justify-between overflow-hidden bg-[#00000077] p-4 text-white md:p-7 lg:p-8">
-            <img
-              className="project-cover-image absolute inset-0 -z-20 h-full w-full object-cover object-center"
-              src="/github-wall.svg"
-              alt=""
-              aria-hidden="true"
-            />
-            <div className="absolute inset-0 -z-10 bg-black/45" />
-            <ExternalArrow />
-            <svg
-              className="h-7 w-7 fill-current text-white sm:h-9 sm:w-9 md:h-11 md:w-11 lg:h-12 lg:w-12"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d={siGithub.path} />
-            </svg>
-            <div className="relative z-10">
-              <h2 className="text-sm font-bold leading-tight sm:text-base md:text-2xl lg:text-3xl">
-                {t("github")}
-              </h2>
-              <p className="mt-1 max-w-[90%] text-xs leading-snug text-white/90 sm:text-sm md:text-lg lg:text-xl">
-                {t("githubDescription")}
-              </p>
-            </div>
-          </div>
+          <img
+            className="project-cover-image pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-25 transition-opacity duration-300 group-hover:opacity-40"
+            src="/github-wall.svg"
+            alt=""
+            aria-hidden="true"
+          />
+          <ExternalArrow />
+          <svg
+            className="relative z-10 h-10 w-10 fill-current sm:h-14 sm:w-14 md:h-20 md:w-20 lg:h-24 lg:w-24"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path d={siGithub.path} />
+          </svg>
         </a>
 
-        {/* 8. Discord Card (2x1) */}
+        {/* 8. Discord Card (1x1) */}
         <DiscordCard
           presence={presence}
           connection={connection}
@@ -297,39 +287,15 @@ export function HomePage() {
           </svg>
         </a>
 
-        {/* 10. Certifications Stat Card (1x1) */}
+        {/* 10. Tutor / About Card (2x1) */}
         <Link
-          className="bento-card bento-card-interactive bento-enter relative col-span-1 flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-3xl bg-[#2ab9adb9] p-2.5 text-white sm:p-3 md:p-4"
-          to="/about"
-          data-sound="card"
-          aria-label={t("certifications")}
-          onPointerMove={tilt.onPointerMove}
-          onPointerLeave={tilt.onPointerLeave}
-          style={{ "--enter-delay": "425ms" } as CSSProperties}
-        >
-          <ExternalArrow />
-          <div className="flex flex-col items-center justify-center pt-3 text-center sm:pt-3.5 lg:pt-0">
-            <p className="text-[9px] font-semibold uppercase tracking-wide text-white/95 sm:text-[11px] md:text-xs lg:text-sm">
-              {t("certificationsPrefix")}
-            </p>
-            <p className="my-0.5 text-3xl font-bold leading-none sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl">
-              {certCount}
-            </p>
-            <p className="text-[9px] font-semibold uppercase tracking-wide text-white/95 sm:text-[11px] md:text-xs lg:text-sm">
-              {t("certificationsShort")}
-            </p>
-          </div>
-        </Link>
-
-        {/* 11. Tutor / About Card (2x1) */}
-        <Link
-          className="bento-card bento-card-interactive bento-enter relative col-span-2 flex h-full w-full cursor-pointer flex-col justify-between overflow-hidden rounded-3xl bg-[#000000d8] p-3.5 text-white dark:bg-[#242424c0] sm:p-5 md:col-span-2 md:aspect-[2/1] md:p-7 lg:p-8"
+          className="bento-card bento-card-interactive bento-enter relative col-span-2 flex h-full w-full cursor-pointer flex-col justify-between overflow-hidden rounded-3xl bg-[#000000d8] p-3.5 text-white dark:bg-[#242424c0] sm:p-5 md:col-span-2 md:aspect-auto md:p-6 lg:p-8"
           to="/about"
           data-sound="card"
           aria-label={t("tutor")}
           onPointerMove={tilt.onPointerMove}
           onPointerLeave={tilt.onPointerLeave}
-          style={{ "--enter-delay": "460ms" } as CSSProperties}
+          style={{ "--enter-delay": "425ms" } as CSSProperties}
         >
           <ExternalArrow />
           <div className="flex items-center pr-6">
@@ -348,7 +314,31 @@ export function HomePage() {
           </div>
         </Link>
 
-        {/* 12. Systems & AI Focus Card (2x1 desktop, 3x1 mobile) */}
+        {/* 11. Certifications Stat Card (1x1) */}
+        <Link
+          className="bento-card bento-card-interactive bento-enter relative col-span-1 flex aspect-square cursor-pointer items-center justify-center overflow-hidden rounded-3xl bg-[#2ab9adb9] p-2.5 text-white sm:p-3 md:p-4"
+          to="/about"
+          data-sound="card"
+          aria-label={t("certifications")}
+          onPointerMove={tilt.onPointerMove}
+          onPointerLeave={tilt.onPointerLeave}
+          style={{ "--enter-delay": "460ms" } as CSSProperties}
+        >
+          <ExternalArrow />
+          <div className="flex flex-col items-center justify-center pt-3 text-center sm:pt-3.5 lg:pt-0">
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-white/95 sm:text-[11px] md:text-xs lg:text-sm">
+              {t("certificationsPrefix")}
+            </p>
+            <p className="my-0.5 text-3xl font-bold leading-none sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl">
+              {certCount}
+            </p>
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-white/95 sm:text-[11px] md:text-xs lg:text-sm">
+              {t("certificationsShort")}
+            </p>
+          </div>
+        </Link>
+
+        {/* 12. Systems & AI Focus Card (3x1 desktop, 3x1 mobile) */}
         <FocusCard enterDelayMs={495} />
       </div>
 

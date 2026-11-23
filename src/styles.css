@@ -404,55 +404,178 @@ html.dark[data-atmosphere="rain"] {
   animation: skill-tile-ring 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Luminous bottom scroll horizon with JS-interpolated progressive blur */
-.scroll-horizon-veil {
+/* Feathered optical veil masks for the dreamy bottom scroll horizon (no transform/opacity here so backdrop-filter blurs the page behind it) */
+.scroll-horizon-veil-wide {
   -webkit-mask-image: linear-gradient(
     to top,
-    #000 0%,
-    rgba(0, 0, 0, 0.72) 42%,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 0.72) 34%,
+    rgba(0, 0, 0, 0.22) 68%,
     transparent 100%
   );
   mask-image: linear-gradient(
     to top,
-    #000 0%,
-    rgba(0, 0, 0, 0.72) 42%,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 0.72) 34%,
+    rgba(0, 0, 0, 0.22) 68%,
     transparent 100%
   );
   will-change: backdrop-filter;
 }
 
-@keyframes horizon-glow-breathe {
+.scroll-horizon-veil-core {
+  -webkit-mask-image: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 0.82) 38%,
+    rgba(0, 0, 0, 0.28) 72%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 0.82) 38%,
+    rgba(0, 0, 0, 0.28) 72%,
+    transparent 100%
+  );
+  will-change: backdrop-filter;
+}
+
+/* Game-like subtle incandescent horizon beacon (replaces directional arrows) */
+@keyframes horizon-aura-breathe {
   0%,
   100% {
-    opacity: 0.45;
-    transform: translateX(-50%) scaleX(0.94);
+    opacity: 0.62;
+    transform: translateX(-50%) scale(0.96, 0.94);
   }
   50% {
-    opacity: 0.95;
-    transform: translateX(-50%) scaleX(1.06);
-  }
-}
-
-.scroll-horizon-glow {
-  animation: horizon-glow-breathe 3.2s ease-in-out infinite;
-}
-
-@keyframes horizon-trail-drop {
-  0% {
-    transform: translate(-50%, -100%);
-    opacity: 0;
-  }
-  30% {
     opacity: 1;
+    transform: translateX(-50%) scale(1.06, 1.08);
+  }
+}
+
+@keyframes horizon-core-breathe {
+  0%,
+  100% {
+    opacity: 0.68;
+    transform: translateX(-50%) scale(0.95, 0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.05, 1.08);
+  }
+}
+
+@keyframes horizon-mote-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0) scale(0.6);
+  }
+  22% {
+    opacity: 0.9;
+    transform: translate3d(calc(var(--mote-dx, 4px) * 0.35), calc(var(--mote-rise, -52px) * 0.25), 0)
+      scale(1);
+  }
+  72% {
+    opacity: 0.55;
+    transform: translate3d(calc(var(--mote-dx, 4px) * 0.8), calc(var(--mote-rise, -52px) * 0.72), 0)
+      scale(0.82);
   }
   100% {
-    transform: translate(-50%, 240%);
     opacity: 0;
+    transform: translate3d(var(--mote-dx, 4px), var(--mote-rise, -52px), 0) scale(0.4);
   }
 }
 
-.scroll-horizon-drop {
-  animation: horizon-trail-drop 1.9s cubic-bezier(0.35, 0, 0.25, 1) infinite;
+.horizon-incandescent-aura {
+  background: radial-gradient(
+    ellipse 56% 100% at 50% 100%,
+    rgba(139, 92, 246, 0.42) 0%,
+    rgba(168, 85, 247, 0.22) 38%,
+    rgba(192, 132, 252, 0.08) 68%,
+    transparent 100%
+  );
+  animation: horizon-aura-breathe 4.6s ease-in-out infinite;
+}
+
+.dark .horizon-incandescent-aura {
+  background: radial-gradient(
+    ellipse 56% 100% at 50% 100%,
+    rgba(243, 232, 255, 0.34) 0%,
+    rgba(192, 132, 252, 0.32) 34%,
+    rgba(139, 92, 246, 0.14) 68%,
+    transparent 100%
+  );
+}
+
+.horizon-incandescent-core {
+  background: radial-gradient(
+    ellipse 52% 96% at 50% 100%,
+    rgba(255, 255, 255, 0.82) 0%,
+    rgba(196, 181, 253, 0.46) 34%,
+    rgba(139, 92, 246, 0.16) 66%,
+    transparent 100%
+  );
+  animation: horizon-core-breathe 3.4s ease-in-out infinite;
+}
+
+.dark .horizon-incandescent-core {
+  background: radial-gradient(
+    ellipse 52% 96% at 50% 100%,
+    rgba(255, 250, 240, 0.78) 0%,
+    rgba(216, 180, 254, 0.38) 36%,
+    rgba(167, 139, 250, 0.14) 68%,
+    transparent 100%
+  );
+}
+
+.horizon-incandescent-rim {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(147, 51, 234, 0.45) 22%,
+    rgba(255, 255, 255, 0.96) 50%,
+    rgba(147, 51, 234, 0.45) 78%,
+    transparent 100%
+  );
+  box-shadow: 0 0 14px 2px rgba(139, 92, 246, 0.45);
+  filter: blur(0.4px);
+}
+
+.dark .horizon-incandescent-rim {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(192, 132, 252, 0.52) 22%,
+    rgba(255, 251, 235, 0.95) 50%,
+    rgba(192, 132, 252, 0.52) 78%,
+    transparent 100%
+  );
+  box-shadow: 0 0 18px 2px rgba(216, 180, 254, 0.55);
+}
+
+.horizon-mote {
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(167, 139, 250, 0.72) 55%,
+    transparent 100%
+  );
+  box-shadow: 0 0 8px 1px rgba(139, 92, 246, 0.45);
+  animation: horizon-mote-rise var(--mote-dur, 3.8s) ease-in-out infinite;
+  animation-delay: var(--mote-delay, 0s);
+}
+
+.dark .horizon-mote {
+  background: radial-gradient(
+    circle,
+    rgba(255, 250, 240, 0.95) 0%,
+    rgba(216, 180, 254, 0.75) 55%,
+    transparent 100%
+  );
+  box-shadow: 0 0 10px 1px rgba(233, 213, 255, 0.6);
 }
 
 @media (prefers-reduced-motion: reduce) {
