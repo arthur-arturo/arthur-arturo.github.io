@@ -11,16 +11,14 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { environment } = useEnvironment();
-  const theme: Theme = environment.isDay ? "light" : "dark";
+  const theme: Theme = environment.solar.nightBlend > 0.52 ? "dark" : "light";
+  const themeColor = environment.solar.skyPalette.themeColor;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.classList.toggle("dark", theme === "dark");
-    document.querySelector('meta[name="theme-color"]')?.setAttribute(
-      "content",
-      theme === "dark" ? "#09030e" : "#f7efff",
-    );
-  }, [theme]);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", themeColor);
+  }, [theme, themeColor]);
 
   return <ThemeContext.Provider value={{ theme }}>{children}</ThemeContext.Provider>;
 }

@@ -3,17 +3,32 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { ATMOSPHERE_CONFIG, DEFAULT_LOCATION } from "../atmosphere/config";
+import {
+  computeSolarCycle,
+  type SolarCycleState,
+  type SolarStage,
+} from "../atmosphere/solarCycle";
+import {
+  fetchLiveWeather,
+  readFreshWeatherCache,
+  resolveVisitorLocation,
+  type RawWeatherSample,
+  type WeatherLocation,
+} from "../atmosphere/weatherService";
+import {
+  deriveLegacyMood,
+  deriveWeatherConditions,
+  type AtmosphereMood,
+  type WeatherConditions,
+} from "../atmosphere/weatherState";
 import { useLocale } from "../i18n/LocaleProvider";
 
-export type AtmosphereMood =
-  | "clear-day"
-  | "overcast-day"
-  | "night-clear"
-  | "night-wind"
-  | "rain";
+export type { AtmosphereMood, SolarCycleState, SolarStage, WeatherConditions };
 
 export interface EnvironmentState {
   mood: AtmosphereMood;
@@ -28,51 +43,9 @@ export interface EnvironmentState {
   localHour: number;
   weatherCode: number | null;
   isLive: boolean;
-}
-
-interface LiveWeatherData {
-  temperature: number;
-  weatherCode: number;
-  isDay: boolean;
-  windSpeed: number;
-  windDirection: number;
-  cloudCover: number;
-}
-
-const WEATHER_CACHE_KEY = "portfolio-ba-weather-v1";
-const WEATHER_CACHE_TTL_MS = 15 * 60_000;
-
-function readCachedWeather(expectedIsDay: boolean): LiveWeatherData | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(WEATHER_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { savedAt?: number; data?: LiveWeatherData };
-    if (
-      typeof parsed?.savedAt !== "number" ||
-      Date.now() - parsed.savedAt >= WEATHER_CACHE_TTL_MS ||
-      !parsed.data ||
-      typeof parsed.data.temperature !== "number" ||
-      parsed.data.isDay !== expectedIsDay
-    ) {
-      return null;
-    }
-    return parsed.data;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedWeather(data: LiveWeatherData) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(
-      WEATHER_CACHE_KEY,
-      JSON.stringify({ savedAt: Date.now(), data }),
-    );
-  } catch {
-    // Ignore storage quota or privacy restrictions.
-  }
+  solar: SolarCycleState;
+  weather: WeatherConditions;
+  locationSource: "geolocation" | "default";
 }
 
 interface EnvironmentContextValue {
@@ -81,89 +54,90 @@ interface EnvironmentContextValue {
 
 const EnvironmentContext = createContext<EnvironmentContextValue | null>(null);
 
-function getBuenosAiresHour(date: Date): number {
-  const hourStr = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    hour12: false,
-    timeZone: "America/Argentina/Buenos_Aires",
-  }).format(date);
-  const parsed = Number.parseInt(hourStr, 10);
-  return Number.isNaN(parsed) ? date.getHours() : parsed % 24;
-}
-
-function isBuenosAiresDaytime(date: Date): boolean {
-  const hour = getBuenosAiresHour(date);
-  return hour >= 6 && hour < 19;
-}
-
-function classifyMood(data: LiveWeatherData): AtmosphereMood {
-  const { weatherCode: code, isDay, windSpeed, cloudCover } = data;
-  const isRain =
-    (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95;
-
-  if (isRain) return "rain";
-  if (isDay) {
-    // Keep partly cloudy skies (WMO code 2, cloudCover < 80%) bright with the daytime Sun visible
-    if (code === 3 || code === 45 || code === 48 || cloudCover >= 80) {
-      return "overcast-day";
-    }
-    return "clear-day";
-  }
-  return windSpeed >= 16 ? "night-wind" : "night-clear";
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
+function isLocalDaytime(date: Date): boolean {
+  const h = date.getHours();
+  return h >= 6 && h < 19;
 }
 
 export function EnvironmentProvider({ children }: { children: ReactNode }) {
   const { locale } = useLocale();
   const [now, setNow] = useState(() => new Date());
-  const [liveWeather, setLiveWeather] = useState<LiveWeatherData | null>(() =>
-    readCachedWeather(isBuenosAiresDaytime(new Date())),
+  const [location, setLocation] = useState<WeatherLocation>({
+    latitude: DEFAULT_LOCATION.latitude,
+    longitude: DEFAULT_LOCATION.longitude,
+    source: "default",
+  });
+  const locationRef = useRef(location);
+  locationRef.current = location;
+
+  const [weatherSample, setWeatherSample] = useState<RawWeatherSample | null>(() =>
+    readFreshWeatherCache(
+      DEFAULT_LOCATION.latitude,
+      DEFAULT_LOCATION.longitude,
+      isLocalDaytime(new Date()),
+    ),
   );
 
   useEffect(() => {
-    const clock = window.setInterval(() => setNow(new Date()), 30_000);
+    const clock = window.setInterval(() => setNow(new Date()), ATMOSPHERE_CONFIG.clockTickMs);
     const controller = new AbortController();
 
-    const loadWeather = async () => {
-      try {
-        const url =
-          "https://api.open-meteo.com/v1/forecast?latitude=-34.6037&longitude=-58.3816&current=temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,cloud_cover&timezone=America%2FArgentina%2FBuenos_Aires";
-        const response = await fetch(url, { signal: controller.signal });
-        if (!response.ok) return;
-        const result = (await response.json()) as {
-          current?: {
-            temperature_2m?: number;
-            weather_code?: number;
-            is_day?: number;
-            wind_speed_10m?: number;
-            wind_direction_10m?: number;
-            cloud_cover?: number;
-          };
-        };
+    const syncWeather = async () => {
+      const expectedIsDay = isLocalDaytime(new Date());
+      const defaultCached = readFreshWeatherCache(
+        DEFAULT_LOCATION.latitude,
+        DEFAULT_LOCATION.longitude,
+        expectedIsDay,
+      );
 
-        const cur = result.current;
-        if (cur && typeof cur.temperature_2m === "number") {
-          const parsed: LiveWeatherData = {
-            temperature: cur.temperature_2m,
-            weatherCode: cur.weather_code ?? 0,
-            isDay: cur.is_day === 1,
-            windSpeed: cur.wind_speed_10m ?? 6,
-            windDirection: cur.wind_direction_10m ?? 180,
-            cloudCover: cur.cloud_cover ?? 15,
-          };
-          setLiveWeather(parsed);
-          writeCachedWeather(parsed);
+      if (!defaultCached) {
+        const defaultSample = await fetchLiveWeather(
+          DEFAULT_LOCATION.latitude,
+          DEFAULT_LOCATION.longitude,
+          controller.signal,
+        );
+        if (defaultSample && !controller.signal.aborted && locationRef.current.source === "default") {
+          setWeatherSample(defaultSample);
         }
-      } catch {
-        // Keep derived local Buenos Aires day/night fallback when offline or aborted.
+      }
+
+      const resolvedLoc = await resolveVisitorLocation(controller.signal);
+      if (controller.signal.aborted) return;
+
+      if (resolvedLoc.source === "geolocation") {
+        setLocation(resolvedLoc);
+        locationRef.current = resolvedLoc;
+
+        const geoCached = readFreshWeatherCache(
+          resolvedLoc.latitude,
+          resolvedLoc.longitude,
+          expectedIsDay,
+        );
+        if (geoCached) {
+          setWeatherSample(geoCached);
+        } else {
+          const geoSample = await fetchLiveWeather(
+            resolvedLoc.latitude,
+            resolvedLoc.longitude,
+            controller.signal,
+          );
+          if (geoSample && !controller.signal.aborted) {
+            setWeatherSample(geoSample);
+          }
+        }
       }
     };
 
-    void loadWeather();
-    const refresh = window.setInterval(loadWeather, 10 * 60_000);
+    void syncWeather();
+
+    const refresh = window.setInterval(() => {
+      const loc = locationRef.current;
+      void fetchLiveWeather(loc.latitude, loc.longitude, controller.signal).then((sample) => {
+        if (sample && !controller.signal.aborted) {
+          setWeatherSample(sample);
+        }
+      });
+    }, ATMOSPHERE_CONFIG.weatherRefreshMs);
 
     return () => {
       controller.abort();
@@ -173,50 +147,47 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const environment = useMemo<EnvironmentState>(() => {
-    const localTime = new Intl.DateTimeFormat(locale, {
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "America/Argentina/Buenos_Aires",
-    }).format(now);
-    const localHour = getBuenosAiresHour(now);
+    const solar = computeSolarCycle(
+      now,
+      locale,
+      weatherSample?.sunriseHour,
+      weatherSample?.sunsetHour,
+    );
+    const weather = deriveWeatherConditions(weatherSample);
+    const mood = deriveLegacyMood(weather, solar.isDay);
 
-    if (liveWeather) {
-      return {
-        mood: classifyMood(liveWeather),
-        windSpeed: liveWeather.windSpeed,
-        windIntensity: clamp(liveWeather.windSpeed / 36, 0.1, 1),
-        windDirection: liveWeather.windDirection,
-        cloudCover: clamp(liveWeather.cloudCover / 100, 0, 1),
-        isDay: liveWeather.isDay,
-        temperature: liveWeather.temperature,
-        isStorm: liveWeather.weatherCode >= 95,
-        localTime,
-        localHour,
-        weatherCode: liveWeather.weatherCode,
-        isLive: true,
-      };
-    }
-
-    const fallbackDay = isBuenosAiresDaytime(now);
     return {
-      mood: fallbackDay ? "clear-day" : "night-clear",
-      windSpeed: 6,
-      windIntensity: 0.16,
-      windDirection: 120,
-      cloudCover: 0.15,
-      isDay: fallbackDay,
-      temperature: null,
-      isStorm: false,
-      localTime,
-      localHour,
-      weatherCode: null,
-      isLive: false,
+      mood,
+      windSpeed: weather.windSpeed,
+      windIntensity: weather.windIntensity,
+      windDirection: weather.windDirection,
+      cloudCover: weather.cloudCover,
+      isDay: solar.isDay,
+      temperature: weather.temperature,
+      isStorm: weather.isStorm,
+      localTime: solar.localTime,
+      localHour: solar.localHour,
+      weatherCode: weather.weatherCode,
+      isLive: weather.isLive,
+      solar,
+      weather,
+      locationSource: location.source,
     };
-  }, [liveWeather, locale, now]);
+  }, [location.source, locale, now, weatherSample]);
 
   useEffect(() => {
-    document.documentElement.dataset.atmosphere = environment.mood;
-  }, [environment.mood]);
+    const { dataset } = document.documentElement;
+    dataset.atmosphere = environment.mood;
+    dataset.solarStage = environment.solar.stage;
+    dataset.weatherFog = environment.weather.fogIntensity > 0.1 ? "true" : "false";
+    dataset.weatherRain =
+      environment.weather.precipitation !== "none" ? environment.weather.precipitation : "none";
+  }, [
+    environment.mood,
+    environment.solar.stage,
+    environment.weather.fogIntensity,
+    environment.weather.precipitation,
+  ]);
 
   return (
     <EnvironmentContext.Provider value={{ environment }}>

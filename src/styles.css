@@ -84,6 +84,30 @@ html.dark[data-atmosphere="rain"] {
   --env-veil-color: rgba(12, 16, 30, 0.46);
 }
 
+html[data-solar-stage="dawn"] {
+  --env-bg: #f5d8ea;
+  --env-rim: rgba(255, 226, 206, 0.36);
+}
+
+html[data-solar-stage="sunset"] {
+  --env-rim: rgba(255, 200, 180, 0.28);
+  --env-spot-color: rgba(255, 194, 168, 0.2);
+}
+
+html[data-weather-fog="true"] {
+  --env-card-filter: saturate(0.86) contrast(0.95);
+  --env-specular: 0.28;
+  --env-veil-opacity: 0.14;
+  --env-veil-color: rgba(226, 229, 240, 0.38);
+}
+
+html.dark[data-weather-fog="true"] {
+  --env-card-filter: saturate(0.86) contrast(0.95);
+  --env-specular: 0.28;
+  --env-veil-opacity: 0.22;
+  --env-veil-color: rgba(20, 22, 34, 0.44);
+}
+
 @layer base {
   html {
     min-height: 100%;
