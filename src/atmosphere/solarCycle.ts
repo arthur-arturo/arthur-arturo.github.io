@@ -1,3 +1,5 @@
+import { DEFAULT_LOCATION } from "./config";
+
 export type SolarStage =
   | "dawn"
   | "morning"
@@ -5,6 +7,16 @@ export type SolarStage =
   | "afternoon"
   | "sunset"
   | "night";
+
+export type LunarPhaseKey =
+  | "new"
+  | "waxing-crescent"
+  | "first-quarter"
+  | "waxing-gibbous"
+  | "full"
+  | "waning-gibbous"
+  | "last-quarter"
+  | "waning-crescent";
 
 export type SolarStageWeights = Record<SolarStage, number>;
 
@@ -40,6 +52,7 @@ export interface SolarCycleState {
   sunArc: CelestialArcPoint;
   moonArc: CelestialArcPoint;
   lunarPhase: number;
+  lunarPhaseKey: LunarPhaseKey;
   skyPalette: SkyPalette;
 }
 
@@ -170,10 +183,61 @@ function blendPalette(weights: SolarStageWeights): SkyPalette {
   return out;
 }
 
+const LUNAR_OCTANTS: LunarPhaseKey[] = [
+  "new",
+  "waxing-crescent",
+  "first-quarter",
+  "waxing-gibbous",
+  "full",
+  "waning-gibbous",
+  "last-quarter",
+  "waning-crescent",
+];
+
+export function getLunarPhaseKey(phase: number): LunarPhaseKey {
+  const normalized = ((phase % 1) + 1) % 1;
+  const idx = Math.round(normalized * 8) % 8;
+  return LUNAR_OCTANTS[idx];
+}
+
 export function computeLunarPhase(date: Date): number {
   const daysSinceNew = (date.getTime() - NEW_MOON_EPOCH_MS) / 86_400_000;
   const phaseDays = ((daysSinceNew % SYNODIC_MONTH_DAYS) + SYNODIC_MONTH_DAYS) % SYNODIC_MONTH_DAYS;
   return phaseDays / SYNODIC_MONTH_DAYS;
+}
+
+function getBuenosAiresClock(date: Date): {
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hourCycle: "h23",
+      timeZone: DEFAULT_LOCATION.timezone,
+    }).formatToParts(date);
+
+    const readPart = (type: string, fallback: number) => {
+      const val = parts.find((p) => p.type === type)?.value;
+      const n = Number.parseInt(val ?? "", 10);
+      return Number.isNaN(n) ? fallback : n;
+    };
+
+    return {
+      hour: readPart("hour", date.getHours()) % 24,
+      minute: readPart("minute", date.getMinutes()),
+      second: readPart("second", date.getSeconds()),
+    };
+  } catch {
+    return {
+      hour: date.getHours(),
+      minute: date.getMinutes(),
+      second: date.getSeconds(),
+    };
+  }
 }
 
 export function computeSolarCycle(
@@ -182,12 +246,13 @@ export function computeSolarCycle(
   sunriseHour = 6.2,
   sunsetHour = 19.2,
 ): SolarCycleState {
-  const localHour = date.getHours();
-  const fractionalHour =
-    date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+  const clock = getBuenosAiresClock(date);
+  const localHour = clock.hour;
+  const fractionalHour = clock.hour + clock.minute / 60 + clock.second / 3600;
   const localTime = new Intl.DateTimeFormat(locale, {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: DEFAULT_LOCATION.timezone,
   }).format(date);
 
   const safeSunrise = clamp(sunriseHour, 4.0, 9.5);
@@ -263,6 +328,7 @@ export function computeSolarCycle(
 
   const isDay = dayPresence >= 0.48;
   const warmth = clamp(weights.dawn * 0.9 + weights.afternoon * 0.45 + weights.sunset, 0, 1);
+  const lunarPhase = computeLunarPhase(date);
 
   return {
     stage: dominantStage,
@@ -279,7 +345,8 @@ export function computeSolarCycle(
     warmth,
     sunArc,
     moonArc,
-    lunarPhase: computeLunarPhase(date),
+    lunarPhase,
+    lunarPhaseKey: getLunarPhaseKey(lunarPhase),
     skyPalette: blendPalette(weights),
   };
 }

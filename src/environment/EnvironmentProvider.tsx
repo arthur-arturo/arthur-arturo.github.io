@@ -3,22 +3,20 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { ATMOSPHERE_CONFIG, DEFAULT_LOCATION } from "../atmosphere/config";
 import {
   computeSolarCycle,
+  type LunarPhaseKey,
   type SolarCycleState,
   type SolarStage,
 } from "../atmosphere/solarCycle";
 import {
   fetchLiveWeather,
   readFreshWeatherCache,
-  resolveVisitorLocation,
   type RawWeatherSample,
-  type WeatherLocation,
 } from "../atmosphere/weatherService";
 import {
   deriveLegacyMood,
@@ -28,7 +26,7 @@ import {
 } from "../atmosphere/weatherState";
 import { useLocale } from "../i18n/LocaleProvider";
 
-export type { AtmosphereMood, SolarCycleState, SolarStage, WeatherConditions };
+export type { AtmosphereMood, LunarPhaseKey, SolarCycleState, SolarStage, WeatherConditions };
 
 export interface EnvironmentState {
   mood: AtmosphereMood;
@@ -45,7 +43,7 @@ export interface EnvironmentState {
   isLive: boolean;
   solar: SolarCycleState;
   weather: WeatherConditions;
-  locationSource: "geolocation" | "default";
+  locationLabel: string;
 }
 
 interface EnvironmentContextValue {
@@ -54,28 +52,27 @@ interface EnvironmentContextValue {
 
 const EnvironmentContext = createContext<EnvironmentContextValue | null>(null);
 
-function isLocalDaytime(date: Date): boolean {
-  const h = date.getHours();
-  return h >= 6 && h < 19;
+function isBuenosAiresDaytime(date: Date): boolean {
+  try {
+    const hourStr = new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: DEFAULT_LOCATION.timezone,
+    }).format(date);
+    const parsed = Number.parseInt(hourStr, 10);
+    const h = Number.isNaN(parsed) ? date.getHours() : parsed % 24;
+    return h >= 6 && h < 19;
+  } catch {
+    const h = date.getHours();
+    return h >= 6 && h < 19;
+  }
 }
 
 export function EnvironmentProvider({ children }: { children: ReactNode }) {
   const { locale } = useLocale();
   const [now, setNow] = useState(() => new Date());
-  const [location, setLocation] = useState<WeatherLocation>({
-    latitude: DEFAULT_LOCATION.latitude,
-    longitude: DEFAULT_LOCATION.longitude,
-    source: "default",
-  });
-  const locationRef = useRef(location);
-  locationRef.current = location;
-
   const [weatherSample, setWeatherSample] = useState<RawWeatherSample | null>(() =>
-    readFreshWeatherCache(
-      DEFAULT_LOCATION.latitude,
-      DEFAULT_LOCATION.longitude,
-      isLocalDaytime(new Date()),
-    ),
+    readFreshWeatherCache(isBuenosAiresDaytime(new Date())),
   );
 
   useEffect(() => {
@@ -83,60 +80,15 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
 
     const syncWeather = async () => {
-      const expectedIsDay = isLocalDaytime(new Date());
-      const defaultCached = readFreshWeatherCache(
-        DEFAULT_LOCATION.latitude,
-        DEFAULT_LOCATION.longitude,
-        expectedIsDay,
-      );
-
-      if (!defaultCached) {
-        const defaultSample = await fetchLiveWeather(
-          DEFAULT_LOCATION.latitude,
-          DEFAULT_LOCATION.longitude,
-          controller.signal,
-        );
-        if (defaultSample && !controller.signal.aborted && locationRef.current.source === "default") {
-          setWeatherSample(defaultSample);
-        }
-      }
-
-      const resolvedLoc = await resolveVisitorLocation(controller.signal);
-      if (controller.signal.aborted) return;
-
-      if (resolvedLoc.source === "geolocation") {
-        setLocation(resolvedLoc);
-        locationRef.current = resolvedLoc;
-
-        const geoCached = readFreshWeatherCache(
-          resolvedLoc.latitude,
-          resolvedLoc.longitude,
-          expectedIsDay,
-        );
-        if (geoCached) {
-          setWeatherSample(geoCached);
-        } else {
-          const geoSample = await fetchLiveWeather(
-            resolvedLoc.latitude,
-            resolvedLoc.longitude,
-            controller.signal,
-          );
-          if (geoSample && !controller.signal.aborted) {
-            setWeatherSample(geoSample);
-          }
-        }
+      const sample = await fetchLiveWeather(controller.signal);
+      if (sample && !controller.signal.aborted) {
+        setWeatherSample(sample);
       }
     };
 
     void syncWeather();
-
     const refresh = window.setInterval(() => {
-      const loc = locationRef.current;
-      void fetchLiveWeather(loc.latitude, loc.longitude, controller.signal).then((sample) => {
-        if (sample && !controller.signal.aborted) {
-          setWeatherSample(sample);
-        }
-      });
+      void syncWeather();
     }, ATMOSPHERE_CONFIG.weatherRefreshMs);
 
     return () => {
@@ -171,9 +123,9 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
       isLive: weather.isLive,
       solar,
       weather,
-      locationSource: location.source,
+      locationLabel: DEFAULT_LOCATION.label,
     };
-  }, [location.source, locale, now, weatherSample]);
+  }, [locale, now, weatherSample]);
 
   useEffect(() => {
     const { dataset } = document.documentElement;

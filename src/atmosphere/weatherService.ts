@@ -15,21 +15,13 @@ export interface RawWeatherSample {
   fetchedAt: number;
 }
 
-export interface WeatherLocation {
-  latitude: number;
-  longitude: number;
-  source: "geolocation" | "default";
-}
-
 interface StoredWeatherEntry {
   savedAt: number;
   coordKey: string;
   sample: RawWeatherSample;
 }
 
-function toCoordKey(lat: number, lon: number): string {
-  return `${lat.toFixed(2)},${lon.toFixed(2)}`;
-}
+const DEFAULT_COORD_KEY = `${DEFAULT_LOCATION.latitude.toFixed(2)},${DEFAULT_LOCATION.longitude.toFixed(2)}`;
 
 function parseIsoHour(isoDateTime: string | undefined, fallback: number): number {
   if (!isoDateTime) return fallback;
@@ -42,11 +34,7 @@ function parseIsoHour(isoDateTime: string | undefined, fallback: number): number
   return hour + (Number.isNaN(minute) ? 0 : minute) / 60;
 }
 
-export function readFreshWeatherCache(
-  latitude: number,
-  longitude: number,
-  expectedIsDay: boolean,
-): RawWeatherSample | null {
+export function readFreshWeatherCache(expectedIsDay: boolean): RawWeatherSample | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(ATMOSPHERE_CONFIG.weatherCacheKey);
@@ -55,7 +43,7 @@ export function readFreshWeatherCache(
     if (
       typeof parsed?.savedAt !== "number" ||
       Date.now() - parsed.savedAt >= ATMOSPHERE_CONFIG.weatherCacheTtlMs ||
-      parsed.coordKey !== toCoordKey(latitude, longitude) ||
+      parsed.coordKey !== DEFAULT_COORD_KEY ||
       !parsed.sample ||
       typeof parsed.sample.isDay !== "boolean" ||
       parsed.sample.isDay !== expectedIsDay
@@ -73,7 +61,7 @@ export function writeWeatherCache(sample: RawWeatherSample): void {
   try {
     const entry: StoredWeatherEntry = {
       savedAt: Date.now(),
-      coordKey: toCoordKey(sample.latitude, sample.longitude),
+      coordKey: DEFAULT_COORD_KEY,
       sample,
     };
     window.localStorage.setItem(ATMOSPHERE_CONFIG.weatherCacheKey, JSON.stringify(entry));
@@ -82,79 +70,13 @@ export function writeWeatherCache(sample: RawWeatherSample): void {
   }
 }
 
-export async function resolveVisitorLocation(signal?: AbortSignal): Promise<WeatherLocation> {
-  const fallback: WeatherLocation = {
-    latitude: DEFAULT_LOCATION.latitude,
-    longitude: DEFAULT_LOCATION.longitude,
-    source: "default",
-  };
-
-  if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-    return fallback;
-  }
-
-  try {
-    if ("permissions" in navigator && typeof navigator.permissions.query === "function") {
-      const permission = await navigator.permissions.query({ name: "geolocation" });
-      if (permission.state === "denied") {
-        return fallback;
-      }
-    }
-  } catch {
-    // Continue gracefully if Permissions API rejects geolocation query.
-  }
-
-  if (signal?.aborted) return fallback;
-
-  return new Promise<WeatherLocation>((resolve) => {
-    let settled = false;
-    const finish = (loc: WeatherLocation) => {
-      if (settled) return;
-      settled = true;
-      resolve(loc);
-    };
-
-    const onAbort = () => finish(fallback);
-    signal?.addEventListener("abort", onAbort, { once: true });
-
-    try {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          signal?.removeEventListener("abort", onAbort);
-          finish({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            source: "geolocation",
-          });
-        },
-        () => {
-          signal?.removeEventListener("abort", onAbort);
-          finish(fallback);
-        },
-        {
-          enableHighAccuracy: false,
-          timeout: ATMOSPHERE_CONFIG.geolocationTimeoutMs,
-          maximumAge: ATMOSPHERE_CONFIG.geolocationMaxAgeMs,
-        },
-      );
-    } catch {
-      signal?.removeEventListener("abort", onAbort);
-      finish(fallback);
-    }
-  });
-}
-
-export async function fetchLiveWeather(
-  latitude: number,
-  longitude: number,
-  signal?: AbortSignal,
-): Promise<RawWeatherSample | null> {
+export async function fetchLiveWeather(signal?: AbortSignal): Promise<RawWeatherSample | null> {
   try {
     const url =
-      `${ATMOSPHERE_CONFIG.openMeteoBaseUrl}?latitude=${encodeURIComponent(latitude.toFixed(4))}` +
-      `&longitude=${encodeURIComponent(longitude.toFixed(4))}` +
+      `${ATMOSPHERE_CONFIG.openMeteoBaseUrl}?latitude=${encodeURIComponent(DEFAULT_LOCATION.latitude.toFixed(4))}` +
+      `&longitude=${encodeURIComponent(DEFAULT_LOCATION.longitude.toFixed(4))}` +
       "&current=temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation,rain,showers" +
-      "&daily=sunrise,sunset&forecast_days=1&timezone=auto";
+      `&daily=sunrise,sunset&forecast_days=1&timezone=${encodeURIComponent(DEFAULT_LOCATION.timezone)}`;
 
     const response = await fetch(url, { signal });
     if (!response.ok) return null;
@@ -197,8 +119,8 @@ export async function fetchLiveWeather(
       precipitationMm: precipTotal,
       sunriseHour: parseIsoHour(result.daily?.sunrise?.[0], 6.2),
       sunsetHour: parseIsoHour(result.daily?.sunset?.[0], 19.2),
-      latitude,
-      longitude,
+      latitude: DEFAULT_LOCATION.latitude,
+      longitude: DEFAULT_LOCATION.longitude,
       fetchedAt: Date.now(),
     };
 

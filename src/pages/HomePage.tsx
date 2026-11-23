@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { siGithub } from "simple-icons";
 import { useBento3DTilt } from "../components/Bento3DCard";
+import { CelestialHud } from "../components/CelestialHud";
 import { DiscordCard } from "../components/DiscordCard";
 import { FocusCard } from "../components/FocusCard";
 import { LanguageCard } from "../components/LanguageCard";
@@ -83,6 +84,7 @@ export function HomePage() {
   return (
     <main className="m-5 flex flex-col bg-transparent">
       <NoiseOverlay />
+      <CelestialHud />
 
       <div className="atmosphere-grid container mx-auto my-5 grid grid-cols-3 gap-2 md:grid-cols-4 md:gap-4 xl:px-20">
         {/* 1. Hero / About (3x2) */}
