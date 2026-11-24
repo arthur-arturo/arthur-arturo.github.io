@@ -12,8 +12,11 @@ export interface DiscordActivity {
   name: string;
   type: number;
   details?: string | null;
+  details_url?: string | null;
   state?: string | null;
+  state_url?: string | null;
   application_id?: string;
+  buttons?: string[];
   timestamps?: {
     start?: number;
     end?: number;
@@ -21,6 +24,7 @@ export interface DiscordActivity {
   assets?: {
     large_image?: string;
     large_text?: string;
+    large_url?: string;
     small_image?: string;
     small_text?: string;
   };
@@ -70,7 +74,14 @@ function readCachedPresence(userId: string): LanyardPresence | null {
     if (!raw) return null;
     const map = JSON.parse(raw) as Record<string, LanyardPresence>;
     const candidate = map?.[userId];
-    return candidate?.discord_user?.id ? candidate : null;
+    if (!candidate?.discord_user?.id) return null;
+    // Only reuse identity/status from cache so avatars render immediately without flashing stale media activities.
+    return {
+      ...candidate,
+      activities: [],
+      listening_to_spotify: false,
+      spotify: null,
+    };
   } catch {
     return null;
   }

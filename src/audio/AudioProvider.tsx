@@ -8,8 +8,16 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { profile } from "../data/portfolio";
 import { useEnvironment } from "../environment/EnvironmentProvider";
+import { useLanyardPresence } from "../hooks/useLanyardPresence";
+import {
+  extractYouTubePresence,
+  getSyncStartSeconds,
+  type LiveMediaTrack,
+} from "../utils/youtubeMusic";
 import { soundEngine } from "./SoundEngine";
+import { YouTubeAudioController, type YouTubePlayerStatus } from "./youtubePlayer";
 
 export type RippleKind = "optical" | "card" | "filter" | "ai";
 
@@ -28,6 +36,11 @@ export interface AudioEnergy {
 
 interface AudioContextValue {
   enabled: boolean;
+  liveTrack: LiveMediaTrack | null;
+  playbackMode: "youtube" | "fallback";
+  isPlaying: boolean;
+  isBuffering: boolean;
+  embedBlocked: boolean;
   toggleEnabled: (clientX?: number) => void;
   playOptical: (clientX?: number) => void;
   playCard: (clientX?: number) => void;
@@ -48,6 +61,7 @@ interface MusicGraph {
 const AudioContextReact = createContext<AudioContextValue | null>(null);
 
 const ZERO_ENERGY: AudioEnergy = { level: 0, bass: 0, mid: 0, treble: 0 };
+const INITIAL_YT_STATUS: YouTubePlayerStatus = { state: "idle", videoId: null, errorCode: null };
 
 function toXNorm(clientX?: number): number {
   if (typeof window === "undefined" || typeof clientX !== "number") return 0.5;
@@ -56,17 +70,30 @@ function toXNorm(clientX?: number): number {
 
 export function AudioProvider({ children }: { children: ReactNode }) {
   const { environment } = useEnvironment();
+  const { presence } = useLanyardPresence(profile.discordId);
+  const liveTrack = useMemo(() => extractYouTubePresence(presence), [presence]);
+
   const [enabled, setEnabled] = useState(false);
+  const [ytStatus, setYtStatus] = useState<YouTubePlayerStatus>(INITIAL_YT_STATUS);
+  const [blockedVideoId, setBlockedVideoId] = useState<string | null>(null);
 
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
   const moodRef = useRef(environment.mood);
   moodRef.current = environment.mood;
+  const liveTrackRef = useRef<LiveMediaTrack | null>(liveTrack);
+  liveTrackRef.current = liveTrack;
+  const ytStatusRef = useRef<YouTubePlayerStatus>(ytStatus);
+  ytStatusRef.current = ytStatus;
+  const blockedVideoIdRef = useRef<string | null>(blockedVideoId);
+  blockedVideoIdRef.current = blockedVideoId;
 
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const musicGraphRef = useRef<MusicGraph | null>(null);
   const graphAttemptedRef = useRef(false);
   const pauseTimeoutRef = useRef<number | null>(null);
+  const ytControllerRef = useRef<YouTubeAudioController | null>(null);
+  const prevLiveRef = useRef<{ hasLive: boolean; videoId: string | null } | null>(null);
 
   const ensureAudioElement = useCallback((): HTMLAudioElement | null => {
     if (typeof document === "undefined") return null;
@@ -123,6 +150,172 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       return null;
     }
   }, []);
+
+  const stopFallbackAudio = useCallback((immediate = false) => {
+    if (pauseTimeoutRef.current !== null) {
+      window.clearTimeout(pauseTimeoutRef.current);
+      pauseTimeoutRef.current = null;
+    }
+
+    const audio = audioElRef.current;
+    if (!audio) return;
+
+    const graph = musicGraphRef.current;
+    if (immediate) {
+      if (graph) {
+        try {
+          const now = graph.ctx.currentTime;
+          graph.gainNode.gain.cancelScheduledValues(now);
+          graph.gainNode.gain.setValueAtTime(0, now);
+        } catch {
+          // Ignore gain reset error.
+        }
+      }
+      audio.volume = 0;
+      audio.pause();
+      return;
+    }
+
+    if (graph) {
+      try {
+        const now = graph.ctx.currentTime;
+        graph.gainNode.gain.cancelScheduledValues(now);
+        graph.gainNode.gain.setValueAtTime(graph.gainNode.gain.value, now);
+        graph.gainNode.gain.linearRampToValueAtTime(0, now + 0.4);
+      } catch {
+        audio.volume = 0;
+      }
+    } else {
+      audio.volume = 0;
+    }
+
+    pauseTimeoutRef.current = window.setTimeout(() => {
+      if (!enabledRef.current || Boolean(liveTrackRef.current)) {
+        audio.pause();
+      }
+    }, 420);
+  }, []);
+
+  const startFallbackAudio = useCallback(() => {
+    if (pauseTimeoutRef.current !== null) {
+      window.clearTimeout(pauseTimeoutRef.current);
+      pauseTimeoutRef.current = null;
+    }
+
+    const audio = ensureAudioElement();
+    if (!audio) return;
+
+    const graph = ensureMusicGraph(audio);
+    if (graph) {
+      try {
+        if (graph.ctx.state === "suspended") {
+          void graph.ctx.resume();
+        }
+        const now = graph.ctx.currentTime;
+        graph.gainNode.gain.cancelScheduledValues(now);
+        graph.gainNode.gain.setValueAtTime(graph.gainNode.gain.value, now);
+        graph.gainNode.gain.linearRampToValueAtTime(0.42, now + 0.75);
+        audio.volume = 1;
+      } catch {
+        audio.volume = 0.42;
+      }
+    } else {
+      audio.volume = 0.42;
+    }
+    void audio.play().catch(() => {});
+  }, [ensureAudioElement, ensureMusicGraph]);
+
+  // Mount & tear down YouTube IFrame AudioController once (StrictMode-safe).
+  useEffect(() => {
+    const controller = new YouTubeAudioController((status) => {
+      ytStatusRef.current = status;
+      setYtStatus(status);
+
+      if (status.state === "error") {
+        if (status.videoId) {
+          blockedVideoIdRef.current = status.videoId;
+          setBlockedVideoId(status.videoId);
+        }
+        enabledRef.current = false;
+        setEnabled(false);
+        stopFallbackAudio(true);
+      }
+    });
+
+    ytControllerRef.current = controller;
+
+    return () => {
+      controller.destroy();
+      if (ytControllerRef.current === controller) {
+        ytControllerRef.current = null;
+      }
+    };
+  }, [stopFallbackAudio]);
+
+  // Clear stale blocked flag when the live track changes or stops.
+  useEffect(() => {
+    if (!liveTrack?.videoId) {
+      setBlockedVideoId(null);
+    } else if (blockedVideoId && blockedVideoId !== liveTrack.videoId) {
+      setBlockedVideoId(null);
+    }
+  }, [liveTrack?.videoId, blockedVideoId]);
+
+  // React to live YT Music changes: pre-warm player when idle, enforce School Days exclusivity, and follow track changes.
+  useEffect(() => {
+    const nextHasLive = Boolean(liveTrack);
+    const nextVideoId = liveTrack?.videoId ?? null;
+    const prev = prevLiveRef.current;
+    prevLiveRef.current = { hasLive: nextHasLive, videoId: nextVideoId };
+
+    if (nextHasLive) {
+      stopFallbackAudio(true);
+    }
+
+    if (!enabledRef.current) {
+      if (nextVideoId && blockedVideoIdRef.current !== nextVideoId) {
+        ytControllerRef.current?.prepare(nextVideoId);
+      } else if (prev?.hasLive && !nextHasLive) {
+        ytControllerRef.current?.pause();
+      }
+      return;
+    }
+
+    if (!prev) {
+      if (nextVideoId && blockedVideoIdRef.current !== nextVideoId) {
+        ytControllerRef.current?.play(nextVideoId, getSyncStartSeconds(liveTrack?.timestamps));
+      }
+      return;
+    }
+
+    // Arthur switched from idle (fallback) -> live YT Music while visitor was listening
+    if ((!prev.hasLive && nextHasLive) || (prev.videoId === null && nextVideoId !== null)) {
+      stopFallbackAudio(true);
+      if (nextVideoId && blockedVideoIdRef.current !== nextVideoId) {
+        ytControllerRef.current?.play(nextVideoId, getSyncStartSeconds(liveTrack?.timestamps));
+      } else {
+        enabledRef.current = false;
+        setEnabled(false);
+      }
+      return;
+    }
+
+    // Arthur switched tracks on YT Music while visitor is listening
+    if (prev.videoId !== null && nextVideoId !== null && prev.videoId !== nextVideoId) {
+      blockedVideoIdRef.current = null;
+      setBlockedVideoId(null);
+      ytControllerRef.current?.play(nextVideoId, getSyncStartSeconds(liveTrack?.timestamps));
+      return;
+    }
+
+    // Arthur stopped listening to YT Music completely while visitor was listening to live track
+    if (prev.hasLive && !nextHasLive) {
+      ytControllerRef.current?.pause();
+      stopFallbackAudio(true);
+      enabledRef.current = false;
+      setEnabled(false);
+    }
+  }, [liveTrack?.videoId, liveTrack, stopFallbackAudio]);
 
   useEffect(() => {
     return () => {
@@ -187,66 +380,74 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const toggleEnabled = useCallback(
     (clientX?: number) => {
       const next = !enabledRef.current;
-      enabledRef.current = next;
-      setEnabled(next);
+      const currentLive = liveTrackRef.current;
 
-      if (pauseTimeoutRef.current !== null) {
-        window.clearTimeout(pauseTimeoutRef.current);
-        pauseTimeoutRef.current = null;
+      if (currentLive) {
+        stopFallbackAudio(true);
+
+        if (next) {
+          if (currentLive.videoId && blockedVideoIdRef.current !== currentLive.videoId) {
+            enabledRef.current = true;
+            setEnabled(true);
+            soundEngine.unlock();
+            soundEngine.playToggle("light", toXNorm(clientX));
+            ytControllerRef.current?.play(
+              currentLive.videoId,
+              getSyncStartSeconds(currentLive.timestamps),
+            );
+          } else {
+            enabledRef.current = false;
+            setEnabled(false);
+            if (currentLive.trackUrl) {
+              window.open(currentLive.trackUrl, "_blank", "noopener,noreferrer");
+            }
+          }
+        } else {
+          enabledRef.current = false;
+          setEnabled(false);
+          ytControllerRef.current?.pause();
+        }
+        return;
       }
 
-      const audio = ensureAudioElement();
+      // Fallback mode: Arthur is not listening to anything, toggle local "Still I Love You" track.
+      ytControllerRef.current?.pause();
+      enabledRef.current = next;
+      setEnabled(next);
 
       if (next) {
         soundEngine.unlock();
         soundEngine.playToggle("light", toXNorm(clientX));
-
-        if (audio) {
-          const graph = ensureMusicGraph(audio);
-          if (graph) {
-            try {
-              if (graph.ctx.state === "suspended") {
-                void graph.ctx.resume();
-              }
-              const now = graph.ctx.currentTime;
-              graph.gainNode.gain.cancelScheduledValues(now);
-              graph.gainNode.gain.setValueAtTime(graph.gainNode.gain.value, now);
-              graph.gainNode.gain.linearRampToValueAtTime(0.42, now + 0.75);
-              audio.volume = 1;
-            } catch {
-              audio.volume = 0.42;
-            }
-          } else {
-            audio.volume = 0.42;
-          }
-          void audio.play().catch(() => {});
-        }
-      } else if (audio) {
-        const graph = musicGraphRef.current;
-        if (graph) {
-          try {
-            const now = graph.ctx.currentTime;
-            graph.gainNode.gain.cancelScheduledValues(now);
-            graph.gainNode.gain.setValueAtTime(graph.gainNode.gain.value, now);
-            graph.gainNode.gain.linearRampToValueAtTime(0, now + 0.4);
-          } catch {
-            audio.volume = 0;
-          }
-        } else {
-          audio.volume = 0;
-        }
-        pauseTimeoutRef.current = window.setTimeout(() => {
-          if (!enabledRef.current) {
-            audio.pause();
-          }
-        }, 420);
+        startFallbackAudio();
+      } else {
+        stopFallbackAudio(false);
       }
     },
-    [ensureAudioElement, ensureMusicGraph],
+    [startFallbackAudio, stopFallbackAudio],
   );
 
   const getAudioEnergy = useCallback((): AudioEnergy => {
     if (!enabledRef.current) return ZERO_ENERGY;
+
+    if (liveTrackRef.current) {
+      const status = ytStatusRef.current.state;
+      if (status === "error" || status === "paused" || status === "idle") {
+        return ZERO_ENERGY;
+      }
+
+      const sec = performance.now() * 0.001;
+      if (status === "loading") {
+        const pulse = 0.12 + 0.04 * (0.5 + 0.5 * Math.sin(sec * 3.1));
+        return { level: pulse, bass: pulse, mid: pulse, treble: pulse * 0.8 };
+      }
+
+      const bass = 0.28 + 0.18 * (0.5 + 0.5 * Math.sin(sec * 2.35)) + 0.08 * Math.sin(sec * 4.7);
+      const mid =
+        0.24 + 0.16 * (0.5 + 0.5 * Math.sin(sec * 3.6 + 0.9)) + 0.06 * Math.cos(sec * 6.2);
+      const treble = 0.18 + 0.14 * (0.5 + 0.5 * Math.sin(sec * 5.4 + 1.7));
+      const level = bass * 0.45 + mid * 0.35 + treble * 0.2;
+      return { level, bass, mid, treble };
+    }
 
     const graph = musicGraphRef.current;
     if (graph && audioElRef.current && !audioElRef.current.paused) {
@@ -279,7 +480,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     // Gentle fallback harmonic pulse when audio is enabled while decoding/in headless sandbox
     const sec = performance.now() * 0.001;
-    const chimePulse = 0.24 + 0.14 * (0.5 + 0.5 * Math.sin(sec * 2.8)) + 0.06 * Math.sin(sec * 6.4);
+    const chimePulse =
+      0.24 + 0.14 * (0.5 + 0.5 * Math.sin(sec * 2.8)) + 0.06 * Math.sin(sec * 6.4);
     return {
       level: chimePulse,
       bass: chimePulse * 0.85,
@@ -318,9 +520,21 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     soundEngine.playModalAction(action, toXNorm(clientX));
   }, []);
 
+  const playbackMode: "youtube" | "fallback" = liveTrack ? "youtube" : "fallback";
+  const isPlaying =
+    enabled && (playbackMode === "fallback" || ytStatus.state === "playing");
+  const isBuffering =
+    enabled && playbackMode === "youtube" && ytStatus.state === "loading";
+  const embedBlocked = Boolean(liveTrack?.videoId && blockedVideoId === liveTrack.videoId);
+
   const value = useMemo<AudioContextValue>(
     () => ({
       enabled,
+      liveTrack,
+      playbackMode,
+      isPlaying,
+      isBuffering,
+      embedBlocked,
       toggleEnabled,
       playOptical,
       playCard,
@@ -331,14 +545,19 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       getAudioEnergy,
     }),
     [
+      embedBlocked,
       enabled,
       getAudioEnergy,
+      isBuffering,
+      isPlaying,
+      liveTrack,
       playCard,
       playFilter,
       playModal,
       playOptical,
       playSkill,
       playToggleSound,
+      playbackMode,
       toggleEnabled,
     ],
   );
