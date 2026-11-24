@@ -163,8 +163,8 @@ export function HomePage() {
         {/* 2. Language Switcher (1x1) */}
         <LanguageCard enterDelayMs={70} />
 
-        {/* 3. Interactive 3D Sound Card (1x1) */}
-        <SoundCard enterDelayMs={125} />
+        {/* 3. Interactive 3D Sound Card + Live YouTube Music Presence (1x1) */}
+        <SoundCard enterDelayMs={125} presence={presence} />
 
         {/* 4. LinkedIn Card (1x1) */}
         <a

@@ -14,6 +14,10 @@ export interface DiscordActivity {
   details?: string | null;
   state?: string | null;
   application_id?: string;
+  timestamps?: {
+    start?: number;
+    end?: number;
+  };
   assets?: {
     large_image?: string;
     large_text?: string;

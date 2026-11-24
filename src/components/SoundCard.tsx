@@ -1,8 +1,10 @@
 import { Disc3 } from "lucide-react";
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import * as THREE from "three";
 import { useAudio } from "../audio/AudioProvider";
+import type { LanyardPresence } from "../hooks/useLanyardPresence";
 import { useLocale } from "../i18n/LocaleProvider";
+import { extractYouTubePresence } from "../utils/youtubeMusic";
 import { useBento3DTilt } from "./Bento3DCard";
 
 const CORE_HALO_VERTEX = `
@@ -115,23 +117,37 @@ const GRAY_COLORS = ["#9ca3af", "#cbd5e1", "#6b7280"];
 const ACTIVE_COLORS = ["#c084fc", "#e879f9", "#f472b6", "#93c5fd", "#f5d0fe"];
 const EQUALIZER_BARS = [48, 86, 60, 96, 54, 80, 44];
 
-export function SoundCard({ enterDelayMs = 125 }: { enterDelayMs?: number }) {
+interface SoundCardProps {
+  enterDelayMs?: number;
+  presence?: LanyardPresence | null;
+}
+
+export function SoundCard({ enterDelayMs = 125, presence = null }: SoundCardProps) {
   const { enabled, toggleEnabled, getAudioEnergy } = useAudio();
   const { t } = useLocale();
   const tilt = useBento3DTilt();
+  const liveTrack = extractYouTubePresence(presence);
+  const [artFailed, setArtFailed] = useState(false);
+
+  const visualActive = enabled || Boolean(liveTrack?.isPlaying);
+  const showArtwork = Boolean(liveTrack?.artworkUrl && !artFailed);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
 
-  const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
+  const enabledRef = useRef(visualActive);
+  enabledRef.current = visualActive;
   const energyFnRef = useRef(getAudioEnergy);
   energyFnRef.current = getAudioEnergy;
   const reducedRedrawRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    setArtFailed(false);
+  }, [liveTrack?.artworkUrl]);
+
+  useEffect(() => {
     reducedRedrawRef.current?.();
-  }, [enabled]);
+  }, [visualActive]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -358,7 +374,7 @@ export function SoundCard({ enterDelayMs = 125 }: { enterDelayMs?: number }) {
       aria-pressed={enabled}
       aria-label={t("soundToggleAria")}
       className={`bento-card bento-card-interactive bento-enter group relative col-span-1 aspect-square cursor-pointer overflow-hidden rounded-3xl outline-none transition-colors duration-500 focus-visible:ring-2 focus-visible:ring-purple-300/70 ${
-        enabled
+        visualActive
           ? "bg-gradient-to-br from-[#2b0b58c4] via-[#1c073acc] to-[#110424e0] shadow-[0_0_32px_-8px_rgba(192,132,252,0.5)] dark:from-[#af72ff56] dark:via-[#5a2b9a5e] dark:to-[#1a0836b8]"
           : "bg-[#1c053a9c] dark:bg-[#23193280]"
       }`}
@@ -374,37 +390,64 @@ export function SoundCard({ enterDelayMs = 125 }: { enterDelayMs?: number }) {
       />
 
       <div className="relative z-10 flex h-full w-full flex-col justify-between p-2.5 text-white sm:p-3.5 md:p-4 lg:p-5">
-        {/* Top bar: Listening now label where disc + paused badge previously sat */}
-        <div className="flex items-center">
+        {/* Top bar: Listening now label + subtle live YouTube/YouTube Music badge when active on Discord */}
+        <div className="flex items-center justify-between gap-1.5">
           <p
             className={`truncate text-[6.5px] font-semibold uppercase tracking-tight transition-colors duration-300 sm:text-[10px] sm:tracking-wide md:text-[11px] lg:tracking-[0.14em] ${
-              enabled ? "text-purple-100/95" : "text-white/75"
+              visualActive ? "text-purple-100/95" : "text-white/75"
             }`}
           >
             {t("listeningNow")}
           </p>
+          {liveTrack && (
+            <span
+              className="hidden shrink-0 items-center gap-1 rounded-full border border-rose-300/30 bg-black/25 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-rose-100 backdrop-blur-sm sm:inline-flex md:px-2 md:text-[10px]"
+              title={liveTrack.sourceLabel}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  liveTrack.isPlaying ? "animate-pulse bg-rose-400" : "bg-zinc-400"
+                }`}
+                aria-hidden="true"
+              />
+              <span>{liveTrack.source === "youtube-music" ? "YT Music" : "YouTube"}</span>
+            </span>
+          )}
         </div>
 
-        {/* Center interactive vinyl disc emitting the 3D musical symbols */}
+        {/* Center interactive vinyl disc (renders live cover art when YouTube Music is playing on Discord) */}
         <div className="flex items-center justify-center">
           <span
             className={`relative flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-500 group-hover:scale-105 group-active:scale-95 sm:h-14 sm:w-14 md:h-16 md:w-16 lg:h-[74px] lg:w-[74px] ${
-              enabled
+              visualActive
                 ? "scale-105 border-purple-200/40 bg-gradient-to-br from-purple-400/30 via-fuchsia-500/20 to-indigo-900/40 text-purple-100 shadow-[0_0_28px_rgba(216,180,254,0.55)]"
                 : "border-white/20 bg-gradient-to-br from-zinc-500/30 via-zinc-700/40 to-zinc-900/50 text-zinc-300 shadow-[0_0_20px_rgba(0,0,0,0.3)]"
             }`}
             aria-hidden="true"
           >
-            <Disc3
-              className={`h-full w-full p-1.5 transition-colors duration-300 sm:p-2 ${
-                enabled ? "animate-[spin_5.5s_linear_infinite] text-purple-100" : "text-zinc-300/90"
-              }`}
-            />
+            {showArtwork && liveTrack?.artworkUrl ? (
+              <img
+                src={liveTrack.artworkUrl}
+                alt=""
+                onError={() => setArtFailed(true)}
+                className={`h-full w-full rounded-full object-cover p-0.5 ${
+                  visualActive ? "animate-[spin_6.5s_linear_infinite]" : "opacity-80 grayscale-[35%]"
+                }`}
+              />
+            ) : (
+              <Disc3
+                className={`h-full w-full p-1.5 transition-colors duration-300 sm:p-2 ${
+                  visualActive ? "animate-[spin_5.5s_linear_infinite] text-purple-100" : "text-zinc-300/90"
+                }`}
+              />
+            )}
             <span
               className={`pointer-events-none absolute h-2 w-2 rounded-full transition-all duration-300 sm:h-2.5 sm:w-2.5 ${
-                enabled
-                  ? "bg-purple-200 shadow-[0_0_10px_rgba(233,213,255,0.95)]"
-                  : "bg-zinc-400/80"
+                showArtwork
+                  ? "border border-white/40 bg-[#1a0836]/90 shadow-[0_0_8px_rgba(0,0,0,0.65)]"
+                  : visualActive
+                    ? "bg-purple-200 shadow-[0_0_10px_rgba(233,213,255,0.95)]"
+                    : "bg-zinc-400/80"
               }`}
             />
           </span>
@@ -413,14 +456,14 @@ export function SoundCard({ enterDelayMs = 125 }: { enterDelayMs?: number }) {
         {/* Bottom track metadata + equalizer bars */}
         <div className="min-w-0 text-left">
           <p className="truncate text-[10px] font-bold leading-tight text-white sm:text-xs md:text-sm">
-            Still I Love You
+            {liveTrack ? liveTrack.title : "Still I Love You"}
           </p>
           <p className="hidden truncate text-[9px] text-white/75 sm:block md:text-[11px]">
-            Katsura Kotonoha
+            {liveTrack ? liveTrack.artist : "Katsura Kotonoha"}
           </p>
           <div
             className={`mt-1 flex h-2.5 items-center sm:h-3 ${
-              enabled ? "spotify-wires-active" : "spotify-wires-idle"
+              visualActive ? "spotify-wires-active" : "spotify-wires-idle"
             }`}
             aria-hidden="true"
           >
